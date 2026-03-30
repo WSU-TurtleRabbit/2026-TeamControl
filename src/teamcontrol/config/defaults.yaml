@@ -1,0 +1,39 @@
+# ── TurtleRabbit 2026 — Default Configuration ──
+# Copy this to config.yaml and change what you need.
+# Anything missing from config.yaml falls back to these defaults.
+
+team:
+  us_yellow: true
+  us_positive: true
+  robots_active: 6
+
+grSim:
+  ip: "127.0.0.1"
+  port: 20011
+
+vision:
+  multicast_group: "224.5.23.2"
+  port: 10006
+  use_grsim: true
+  max_cameras: 4
+
+game_controller:
+  multicast_group: "224.5.23.1"
+  port: 10003
+
+network:
+  robot_ip: "192.168.1.2"
+  vision_ip: "224.5.23.2"
+
+blue:
+  base_id: 0
+yellow:
+  base_id: 0
+
+send_to_grsim: true
+
+# cache settings
+cache:
+  max_frames: 120        # ~2 seconds at 60fps
+  ttl_seconds: 5.0       # how long stuff stays valid
+  cleanup_interval: 10.0 # seconds between cache sweeps

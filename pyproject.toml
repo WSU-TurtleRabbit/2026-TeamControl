@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "teamcontrol"
+version = "2.0.0"
+requires-python = ">=3.11"
+description = "TurtleRabbit SSL RoboCup Team Control — 2026 Season"
+dependencies = [
+    "numpy",
+    "protobuf",
+    "PyYAML",
+    "py_trees",
+]
+
+[project.optional-dependencies]
+sim = [
+    "pygame",
+]
+ui = [
+    "PySide6",
+]
+planning = [
+    "Shapely",
+    "scikit-learn",
+    "networkx",
+]
+dev = [
+    "pytest",
+    "ruff",
+]
+all = [
+    "teamcontrol[sim,ui,planning,dev]",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100

@@ -1,0 +1,31 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# env
+.env
+.venv/
+venv/
+
+# logs
+logs/*.log
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# os junk
+.DS_Store
+Thumbs.db
+
+# protobuf compiled
+*_pb2.py
+
+# tuning file (local to each machine)
+tuning.json
