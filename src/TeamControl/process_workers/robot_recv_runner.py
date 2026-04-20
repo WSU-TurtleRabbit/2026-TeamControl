@@ -1,30 +1,74 @@
+import socket
+
 from multiprocessing import Queue
 from TeamControl.process_workers.worker import BaseWorker
-from TeamControl.network.receiver import Receiver
 
 
 RECV_PORT = 50513
+RECV_TIMEOUT = 0.5
+BUFFER_SIZE = 2048
 
 
 class RobotRecv(BaseWorker):
+    """UDP listener for per-robot onboard telemetry.
+
+    Binds directly to 0.0.0.0:50513 and forwards raw bytes into recv_q.
+    We deliberately bypass `network.receiver.Receiver` because its
+    `_decode` does `data.decode("utf-8")` — any non-UTF-8 byte raises
+    UnicodeDecodeError out of `listen()`, which BaseWorker counts as a
+    worker error and kills the process after 4 in a row. `parse_packet`
+    (downstream in WMWorker) already accepts both bytes and str.
+    """
+
     def __init__(self, is_running, logger):
         super().__init__(is_running, logger)
-        # Bind to 0.0.0.0 so packets arriving on ANY interface (robot LAN,
-        # Wi-Fi, loopback) are accepted. Default _obtain_sys_ip() picks the
-        # interface routing to 8.8.8.8, which on Windows is usually the
-        # internet-facing one — robot packets would never arrive there.
-        self.recv = Receiver(is_running=is_running, ip="0.0.0.0",
-                             port=RECV_PORT)
         self._queue: Queue | None = None
-        self.logger.info(
-            f"[RobotRecv] listening on {self.recv.addr} "
-            f"(ready={self.recv.is_ready})")
+        self._sock: socket.socket | None = None
+        self._packets = 0
+        self._parse_errors = 0
+        self._last_log = 0.0
 
     def setup(self, recv_queue: Queue):
         self._queue = recv_queue
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("0.0.0.0", RECV_PORT))
+        sock.settimeout(RECV_TIMEOUT)
+        self._sock = sock
+        msg = f"[RobotRecv] listening on 0.0.0.0:{RECV_PORT}"
+        self.logger.info(msg)
+        print(msg, flush=True)
         super().setup()
 
     def step(self):
-        data, addr = self.recv.listen()
-        if data is not None and self._queue is not None:
-            self._queue.put((data, addr))
+        if self._sock is None or self._queue is None:
+            return
+        try:
+            data, addr = self._sock.recvfrom(BUFFER_SIZE)
+        except socket.timeout:
+            return
+        except OSError as e:
+            self.logger.error(f"[RobotRecv] socket error: {e}")
+            return
+
+        self._queue.put((data, addr))
+        self._packets += 1
+
+        import time as _t
+        now = _t.time()
+        if self._packets <= 5 or (now - self._last_log) > 2.0:
+            self._last_log = now
+            preview = data[:60] if isinstance(data, (bytes, bytearray)) else str(data)[:60]
+            msg = (f"[RobotRecv] pkt #{self._packets} from {addr} "
+                   f"len={len(data)} head={preview!r}")
+            self.logger.info(msg)
+            print(msg, flush=True)
+
+    def shutdown(self):
+        if self._sock is not None:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
+            self._sock = None
+        super().shutdown()

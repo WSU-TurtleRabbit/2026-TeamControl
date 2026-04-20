@@ -15,6 +15,9 @@ class WMWorker(BaseWorker):
         self.delay_time = 0.001 # s
         self.recv_q: Queue | None = None
         self.ip_map: dict = {}
+        self._onboard_ingested = 0
+        self._onboard_rejected = 0
+        self._last_onboard_log = 0.0
 
 
     def setup(self, *args):
@@ -66,9 +69,14 @@ class WMWorker(BaseWorker):
                     data, addr = self.recv_q.get_nowait()
                 except Exception:
                     break
+                drained += 1
                 obs = parse_packet(data)
                 if obs is None:
-                    drained += 1
+                    self._onboard_rejected += 1
+                    self.logger.warning(
+                        f"[wmr] onboard: parse_packet returned None "
+                        f"from {addr} len={len(data)} "
+                        f"head={data[:60]!r}")
                     continue
                 obs.recv_ts = time.time()
                 if obs.robot_id < 0 and addr:
@@ -76,9 +84,23 @@ class WMWorker(BaseWorker):
                     if m is not None:
                         obs.is_yellow = bool(m[0])
                         obs.robot_id = int(m[1])
-                if obs.robot_id >= 0:
-                    self.wm.put_onboard_obs(obs)
-                drained += 1
+                if obs.robot_id < 0:
+                    self._onboard_rejected += 1
+                    self.logger.warning(
+                        f"[wmr] onboard: no robot_id for {addr} "
+                        f"(ip_map has {len(self.ip_map)} entries)")
+                    continue
+                self.wm.put_onboard_obs(obs)
+                self._onboard_ingested += 1
+
+            now = time.time()
+            if drained and (now - self._last_onboard_log) > 2.0:
+                self._last_onboard_log = now
+                msg = (f"[wmr] onboard totals: ingested="
+                       f"{self._onboard_ingested} "
+                       f"rejected={self._onboard_rejected}")
+                self.logger.info(msg)
+                print(msg, flush=True)
 
         time.sleep(self.delay_time)
     
