@@ -28,6 +28,7 @@ class PathPlanner():
         self.p = VoronoiPlanner(xsize=field_x,ysize=field_y) #initialise planner
         self.output_q = dispatcher_q # output to behaviour tree or world model
         self.goals = [(0, 0)]
+        self.movement = RobotMovement()
 
     def check_wm_update(self):
         # checks if world model has is_yellow otherwise use default here
@@ -89,7 +90,7 @@ class PathPlanner():
                 
 
 
-                vx,vy,w= RobotMovement.velocity_to_target(robot_pos=robot_pos,target=point,speed=0.1,stop_threshold=70)
+                vx,vy,w= self.movement.velocity_to_target(robot_pos=robot_pos,target=point,speed=0.1,stop_threshold=70)
                 # print(vx,vy)
                 command = RobotCommand(robot_id, vx, vy,0,0,0) 
                 runtime = 1

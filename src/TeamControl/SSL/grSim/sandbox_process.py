@@ -15,6 +15,7 @@ class GrSimSandbox:
         self.sender = grSimSender(ip=self.sim_ip,port=self.cmd_listen_port)
         self.version = 0 # vision version
         self.ball_last_known = (0,0)
+        self.movement = RobotMovement()
 
     def running(self):
         vx, vy, w= 0, 0 , 0
@@ -29,7 +30,7 @@ class GrSimSandbox:
                 time_to_intercept(ball_pos=self.ball_last_known,target=None, ball_hist=ball_hist)
                 velocity_est(ball_hist = ball_hist)
                 # Robot : calculate velocity to target : ball
-                vx, vy, w= RobotMovement.velocity_to_target(robot_pos=robot_pos, target=ball_hist[0])
+                vx, vy, w= self.movement.velocity_to_target(robot_pos=robot_pos, target=ball_hist[0])
             
             # send the command after
             cmd = RobotCommand(self.robot_id, vx, vy, w, 0, 0) 

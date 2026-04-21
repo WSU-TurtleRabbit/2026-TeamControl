@@ -3,7 +3,7 @@ import math
 from TeamControl.network.robot_command import RobotCommand
 from TeamControl.world.model import WorldModel as wm
 from TeamControl.world.transform_cords import world2robot
-from TeamControl.robot.Movement import RobotMovement
+from TeamControl.robot.Movement import RobotMovement, get_movement
 
 APPROACH_RADIUS = 300.0
 ALIGN_TOL = 0.15
@@ -100,7 +100,7 @@ def go_to_ball_and_shoot(
             ROBOT_OFFSET,
         )
 
-        vx*2, vy*2, w = RobotMovement.velocity_to_target(
+        vx*2, vy*2, w = get_movement(robot_id, is_yellow=isYellow).velocity_to_target(
             robot_pos=robot_pos_tuple,
             target=shooting_pos,
             turning_target=goal_pos,
