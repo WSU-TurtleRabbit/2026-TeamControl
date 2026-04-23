@@ -39,7 +39,7 @@ python ui_main.py
 For headless mode:
 
 ```shell
-python main.py --mode goalie
+python main.py --mode <some mode>
 ```
 
 For grSim changes:
