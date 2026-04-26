@@ -11,7 +11,8 @@ Features:
 """
 
 import math
-from PySide6.QtWidgets import QWidget, QToolTip, QMenu
+import time
+from PySide6.QtWidgets import QWidget, QToolTip, QMenu, QPushButton, QHBoxLayout, QLabel
 from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QSize
 from PySide6.QtGui import (QPainter, QPen, QBrush, QColor, QFont,
                            QPainterPath, QTransform, QWheelEvent,
@@ -59,9 +60,34 @@ class FieldCanvas(QWidget):
         # Placement state (set by sim panel)
         self._place_mode = None   # "ball", ("robot", id, yellow)
 
+        # Velocity overlay
+        self._show_velocity = False
+        self._vel_prev: dict = {}   # (team, id) -> (x, y, timestamp)
+        self._velocities: dict = {} # (team, id) -> (vx_mm_s, vy_mm_s)
+
+        # Zoom overlay (built last so it sits on top)
+        self._build_zoom_overlay()
+
     # ── Public API ────────────────────────────────────────────────
 
+    def set_show_velocity(self, enabled: bool):
+        self._show_velocity = enabled
+        self.update()
+
     def set_frame(self, snap):
+        if self._show_velocity:
+            now = time.monotonic()
+            new_vel = {}
+            for r in (*snap.yellow, *snap.blue):
+                key = (r.team, r.id)
+                if key in self._vel_prev:
+                    px, py, pt = self._vel_prev[key]
+                    dt = now - pt
+                    if 0 < dt < 0.5:
+                        new_vel[key] = ((r.x - px) / dt, (r.y - py) / dt)
+                self._vel_prev[key] = (r.x, r.y, now)
+            self._velocities = new_vel
+
         self._yellow = snap.yellow
         self._blue = snap.blue
         self._ball = snap.ball
@@ -82,6 +108,63 @@ class FieldCanvas(QWidget):
             self.setCursor(Qt.CrossCursor)
         else:
             self.setCursor(Qt.ArrowCursor)
+
+    # ── Zoom overlay ──────────────────────────────────────────────
+
+    def _build_zoom_overlay(self):
+        self._zoom_overlay = QWidget(self)
+        self._zoom_overlay.setStyleSheet(
+            "QWidget { background: #1e1e2e; border: 1px solid #444; border-radius: 5px; }"
+        )
+
+        lay = QHBoxLayout(self._zoom_overlay)
+        lay.setContentsMargins(6, 4, 6, 4)
+        lay.setSpacing(4)
+
+        icon = QLabel("🔍")
+        icon.setStyleSheet("background: transparent; border: none; font-size: 14px; color: #cccccc;")
+        lay.addWidget(icon)
+
+        btn_style = (
+            "QPushButton { background: #2a2a3e; color: #ffffff; border: none;"
+            " border-radius: 3px; font-size: 16px; font-weight: bold; padding: 0px; }"
+            "QPushButton:hover { background: #3a3a5e; }"
+            "QPushButton:pressed { background: #e94560; }"
+        )
+        for text, tip, slot in [
+            ("+", "Zoom In",     self._zoom_in),
+            ("-", "Zoom Out",    self._zoom_out),
+            ("↺", "Fit to View", self._zoom_fit),
+        ]:
+            btn = QPushButton(text)
+            btn.setFixedSize(32, 28)
+            btn.setToolTip(tip)
+            btn.setStyleSheet(btn_style)
+            btn.clicked.connect(slot)
+            lay.addWidget(btn)
+
+        self._zoom_overlay.adjustSize()
+
+    def _zoom_in(self):
+        self._scale = min(5.0, self._scale * 1.2)
+        self.update()
+
+    def _zoom_out(self):
+        self._scale = max(0.2, self._scale * 0.8)
+        self.update()
+
+    def _zoom_fit(self):
+        self._scale = 1.0
+        self._offset = QPointF(0, 0)
+        self.update()
+
+    def resizeEvent(self, event: QResizeEvent):
+        super().resizeEvent(event)
+        self._zoom_overlay.adjustSize()
+        margin = 10
+        self._zoom_overlay.move(
+            self.width() - self._zoom_overlay.width() - margin, margin)
+        self._zoom_overlay.raise_()
 
     # ── Coordinate transforms ─────────────────────────────────────
 
@@ -209,6 +292,29 @@ class FieldCanvas(QWidget):
             p.setFont(font)
             text_rect = QRectF(cx - 50, cy - 50, 100, 100)
             p.drawText(text_rect, Qt.AlignCenter, str(r.id))
+
+            # Velocity vector
+            if self._show_velocity:
+                key = (r.team, r.id)
+                if key in self._velocities:
+                    vx, vy = self._velocities[key]
+                    speed = math.hypot(vx, vy)
+                    if speed > 100:  # suppress noise below 100 mm/s
+                        scale = 0.3   # show 0.3 s of travel
+                        ex = cx + vx * scale
+                        ey = cy + vy * scale
+                        vel_pen = QPen(QColor("#ffffff"), 14)
+                        vel_pen.setCapStyle(Qt.RoundCap)
+                        p.setPen(vel_pen)
+                        p.drawLine(QPointF(cx, cy), QPointF(ex, ey))
+                        angle = math.atan2(vy, vx)
+                        head = 45
+                        p.drawLine(QPointF(ex, ey),
+                                   QPointF(ex + math.cos(angle + 2.6) * head,
+                                           ey + math.sin(angle + 2.6) * head))
+                        p.drawLine(QPointF(ex, ey),
+                                   QPointF(ex + math.cos(angle - 2.6) * head,
+                                           ey + math.sin(angle - 2.6) * head))
 
     def _draw_ball(self, p: QPainter):
         if not self._ball:

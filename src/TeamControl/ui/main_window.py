@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QTabWidget, QStatusBar, QWidget, QHBoxLayout, QSizePolicy,
     QApplication, QSpinBox,
 )
-from PySide6.QtCore import Qt, QTimer, QPointF
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QFont, QIcon
 
 from TeamControl.ui.theme import QSS, ACCENT, TEXT, TEXT_DIM, SUCCESS, DANGER, WARNING
@@ -163,34 +163,6 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         tb.addWidget(spacer)
 
-        # View controls
-        zoom_in = QPushButton("+")
-        zoom_in.setFixedSize(28, 28)
-        zoom_in.setToolTip("Zoom In")
-        zoom_in.clicked.connect(lambda: self._zoom(1.2))
-        zoom_out = QPushButton("−")
-        zoom_out.setFixedSize(28, 28)
-        zoom_out.setToolTip("Zoom Out")
-        zoom_out.clicked.connect(lambda: self._zoom(0.8))
-        zoom_reset = QPushButton("Fit")
-        zoom_reset.setFixedSize(40, 28)
-        zoom_reset.setToolTip("Reset field view")
-        zoom_reset.clicked.connect(self._reset_field_view)
-
-        tb.addWidget(QLabel(" View: "))
-        tb.addWidget(zoom_in)
-        tb.addWidget(zoom_out)
-        tb.addWidget(zoom_reset)
-
-    def _zoom(self, factor):
-        self._field._scale = max(0.2, min(5.0, self._field._scale * factor))
-        self._field.update()
-
-    def _reset_field_view(self):
-        self._field._scale = 1.0
-        self._field._offset = QPointF(0, 0)
-        self._field.update()
-
     # ── Menu ─────────────────────────────────────────────────────
 
     def _build_menu(self):
@@ -202,7 +174,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction("Exit", self.close)
 
         view_menu = mb.addMenu("View")
-        view_menu.addAction("Reset Field View", self._reset_field_view)
+        view_menu.addAction("Reset Field View", self._field._zoom_fit)
         view_menu.addSeparator()
         for i, name in enumerate(["Dashboard", "Settings", "Console",
                                    "Hardware Test", "Dispatcher",
