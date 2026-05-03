@@ -30,7 +30,7 @@ class Harness:
 
     def send(self, vx, vy, w, kick = 0, dribble = 0):
         self._runner.send(vx, vy, w, kick = kick, dribble = dribble)
-        state = self._runner.read.state()
+        state = self._runner.read_state()
         if state is None: 
             sx = sy = stheta = ""
         else: 

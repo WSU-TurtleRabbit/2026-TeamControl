@@ -83,7 +83,7 @@ gc:
   port: 10003
 network:
   robot_ip: 192.168.1.2
-  vision_ip: 192.168.1.2
+  vision_ip: 0.0.0.0
 use_grSim_vision: false
 us_yellow: true
 us_positive: true
