@@ -31,7 +31,7 @@ def test_if_ball_exist():
     robot_pos = (0.0, 0.0, 0.0)
     ball=(100.0, 0.0)
 
-    vx, vy, w = RobotMovement.velocity_to_target(robot_pos=robot_pos, target=ball)
+    vx, vy, w = RobotMovement().velocity_to_target(robot_pos=robot_pos, target=ball)
 
     assert vx != 0.0 or vy != 0.0 or w != 0.0, f"Ball does not exist printed velocities: vx={vx}, vy={vy}, w={w}"
 def line(x1, y1, x2, y2):
