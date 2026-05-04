@@ -1,6 +1,6 @@
 import csv
 import os
-from datetime import datetime 
+from datetime import datetime
 
 class CSVLogger:
     def __init__(self, log_dir, columns):
@@ -32,7 +32,8 @@ class CSVLogger:
             return 
         if self._file is None: 
             raise RuntimeError("CSVLogger.log() called before start")
-        row = [fields.get(col, "") for col in self.columns]
+        ROUND = {"t_ms": 3, "x_pos": 2, "y_pos": 2, "theta_pos": 4}
+        row = [round(fields[col], ROUND[col]) if col in fields and col in ROUND else fields[col] if col in fields else "" for col in self.columns]
         self._writer.writerow(row)
     
     def stop(self):
