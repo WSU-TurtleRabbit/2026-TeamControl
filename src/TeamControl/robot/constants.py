@@ -25,6 +25,11 @@ def _load_tuning():
         "angular_slow_speed": 0.25,
         "angular_normal_speed": 0.5,
         "angular_fast_speed": 0.6,
+        "turn_kp": 1.0,
+        "turn_kd": 0.1,
+        "linear_kp": 0.002,
+        "linear_kd": 0.0005,
+        "angle_epsilon": 0.1,
     }
     try:
         with open(_TUNING_PATH, "r") as f:
@@ -110,6 +115,18 @@ PASS_CLEAR        = 400      # mm — pass lane clearance
 
 FACE_BALL_GAIN    = _t["face_ball_gain"]
 ONETOUCH_ANGLE    = 0.8      # max angle offset for one-touch redirect
+
+# PD controller gains (Movement.py)
+TURN_KP           = _t["turn_kp"]     # rad -> rad/s
+TURN_KD           = _t["turn_kd"]     # rad/s -> rad/s
+LINEAR_KP         = _t["linear_kp"]   # mm -> m/s
+LINEAR_KD         = _t["linear_kd"]   # mm/s -> m/s
+ANGLE_EPSILON     = _t["angle_epsilon"]  # deadband below which ω = 0
+
+# Threshold zones for go_to_target (mm)
+KICKER_ZONE        = 70       # below this, speed is 0
+DRIBBLE_ZONE       = 400      # below this, speed is capped to DRIBBLE_SPEED_FRAC
+DRIBBLE_SPEED_FRAC = 0.2      # fraction of max_speed inside dribble zone
 
 # ═════════════════════════════════════════════════════════════════
 #  THRESHOLDS

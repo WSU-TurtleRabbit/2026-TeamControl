@@ -5,7 +5,7 @@ import numpy as np
 from TeamControl.network.robot_command import RobotCommand
 from TeamControl.world.model import WorldModel as wm
 from TeamControl.world.transform_cords import world2robot
-from TeamControl.robot.Movement import RobotMovement
+from TeamControl.robot.Movement import RobotMovement, get_movement
 
 
 def go_to_ball_and_shoot(world_model: wm, isYellow: bool, robot_id: int,
@@ -33,7 +33,7 @@ def go_to_ball_and_shoot(world_model: wm, isYellow: bool, robot_id: int,
     shooting_pos = RobotMovement.shooting_pos(ball_pos, goal_pos, robot_offset=200.0)
 
     # 4. Compute velocity to go to that shooting position and face the goal
-    vx, vy, w = RobotMovement.velocity_to_target(
+    vx, vy, w = get_movement(robot_id, is_yellow=isYellow).velocity_to_target(
         robot_pos=robot_pos,          # (x, y, theta) in world coords
         target=shooting_pos,          # where to stand
         turning_target=goal_pos,      # what to face

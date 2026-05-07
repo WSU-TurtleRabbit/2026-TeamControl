@@ -21,6 +21,7 @@ class follow_ball_dummy():
         self.us_yellow = us_yellow
         self.last_version = 0
         self.logs = LogSaver(process_name="rc_Process",id=robot_id)
+        self.movement = RobotMovement()
 
         
         
@@ -48,7 +49,7 @@ class follow_ball_dummy():
             except Exception :
                 robot_pos = 0,0,0
                 ball = 0,0
-            vx, vy,w = RobotMovement.velocity_to_target(robot_pos=robot_pos, target=ball)
+            vx, vy,w = self.movement.velocity_to_target(robot_pos=robot_pos, target=ball)
 
             cmd = RobotCommand(self.robot_id, vx, vy, w, 0, 0)
             # puts command into queue
