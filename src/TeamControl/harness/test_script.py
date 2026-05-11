@@ -1,6 +1,8 @@
+import os
 import time
 import random
 import math
+from datetime import datetime
 import matplotlib.pyplot as plt
 from TeamControl.harness.harness import Harness
 from TeamControl.harness.constants import (
@@ -15,7 +17,11 @@ Program description:
 2. Brake phase: zero velocity for ~0.5s, position sampled in memory → compute overshoot + settling time
 3. Repeat for next run
 4. After the whole loop, Plot overshooting + settling time side-by-side
+
 """
+PLOTS_DIR = os.path.join(os.path.dirname(__file__), "plots")
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
 h = Harness(robot_id=ROBOT_ID, is_yellow=IS_YELLOW)
 path = h.start("overshoot_test")
 print(f"Logging to: {path}")
@@ -90,6 +96,9 @@ ax2.set_title("Settling Time per Run")
 ax2.set_xticks(runs)
 
 plt.tight_layout()
-plt.savefig("overshoot_analysis.png")
+max_overshoot = max(overshoots) if overshoots else 0.0
+ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+plot_path = os.path.join(PLOTS_DIR, f"{ts}_max{max_overshoot:.1f}mm.png")
+plt.savefig(plot_path)
 plt.show()
-print("\nPlot saved to overshoot_analysis.png")
+print(f"\nPlot saved to {plot_path}")
