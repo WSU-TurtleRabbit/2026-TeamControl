@@ -22,6 +22,7 @@ Entry points:
 - `onboard_vision/` — receiver/observation/store for on-robot camera data.
 - `ui/` — PyQt operator app: `main_window`, `dashboard_page`, `calibration_page`, etc.
 - `plotter/` — visualization helpers.
+- `bt/` — **v2 BT** (TurtleRabbitBT integration). `contracts/`, `skills/`, `trees/`, `coordinator.py`, plus `adapter.py` (WorldModel↔Snapshot, Intent→RobotCommand) and `run_bt_v2_process.py` (multiprocess runner). The legacy `behaviour_tree/` package at the repo root still ships alongside it.
 
 ## Config files at repo root
 - `calibration.json` — drive calibration (speed scale + drift). Read at import by [ball_nav.py:41](src/TeamControl/robot/ball_nav.py#L41); written by the Calibration UI tab.
@@ -35,6 +36,9 @@ Entry points:
 - [docs/Multiprocessing.md](docs/Multiprocessing.md) — process worker architecture
 - [docs/SSL-NetworkPorts.md](docs/SSL-NetworkPorts.md) — UDP ports / multicast groups
 - [docs/maintainers.md](docs/maintainers.md)
+- [docs/bt_contracts.md](docs/bt_contracts.md) — v2 BT contract types (Snapshot / Intent / MotionTarget / Blackboard)
+- [docs/bt_v2_integration.md](docs/bt_v2_integration.md) — how the v2 BT (TurtleRabbitBT) plugs into the rest of the stack
+- [docs/bt_v2_6v6_sim.md](docs/bt_v2_6v6_sim.md) — BT-vs-BT 6v6 launcher and its `sim_6v6.yaml`
 - [src/TeamControl/network/proto2/README.md](src/TeamControl/network/proto2/README.md) — protobuf regeneration
 
 ## Environment

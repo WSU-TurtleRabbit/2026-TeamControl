@@ -49,6 +49,10 @@ from TeamControl.bt.skills.move_to import move_to
 from TeamControl.network.robot_command import RobotCommand
 from TeamControl.SSL.game_controller.common import GameState
 
+# Runtime world state comes in as raw SSL/grSim millimetres.
+_MM_TO_M = 0.001
+
+
 # Map the 2026 GameState enum into the BT's GamePhase string enum.
 _PHASE_MAP = {
     GameState.HALTED: GamePhase.HALTED,
@@ -63,6 +67,10 @@ def _phase_from_state(state) -> GamePhase:
     return _PHASE_MAP.get(state, GamePhase.RUNNING)
 
 
+def _mm_to_m(value: float) -> float:
+    return float(value) * _MM_TO_M
+
+
 def _ball_pos_vel(frame) -> tuple[tuple[float, float], tuple[float, float]]:
     """Return (ball_position, ball_velocity) tuples from the latest frame.
 
@@ -72,7 +80,7 @@ def _ball_pos_vel(frame) -> tuple[tuple[float, float], tuple[float, float]]:
     ball = frame.ball if frame is not None else None
     if ball is None:
         return (0.0, 0.0), (0.0, 0.0)
-    return (float(ball.x), float(ball.y)), (0.0, 0.0)
+    return (_mm_to_m(ball.x), _mm_to_m(ball.y)), (0.0, 0.0)
 
 
 def _team_to_states(team) -> tuple[RobotState, ...]:
@@ -81,15 +89,19 @@ def _team_to_states(team) -> tuple[RobotState, ...]:
         out.append(
             RobotState(
                 robot_id=int(robot.id),
-                position=(float(robot.x), float(robot.y)),
+                position=(_mm_to_m(robot.x), _mm_to_m(robot.y)),
                 orientation=float(robot.o),
             )
         )
     return tuple(out)
 
 
-def build_snapshot_from_world_model(wm) -> Snapshot | None:
+def build_snapshot_from_world_model(wm, is_yellow: bool | None = None) -> Snapshot | None:
     """Build a frozen ``Snapshot`` from the latest data in ``WorldModel``.
+
+    ``is_yellow`` selects whose perspective the snapshot is built from. Pass
+    it explicitly when more than one BT process shares the same WorldModel
+    (e.g. 6v6 simulation). When omitted, falls back to ``wm.us_yellow()``.
 
     Returns ``None`` when no vision frame has been received yet — callers
     should skip the tick in that case.
@@ -100,9 +112,10 @@ def build_snapshot_from_world_model(wm) -> Snapshot | None:
 
     ball_pos, ball_vel = _ball_pos_vel(frame)
 
-    us_yellow = wm.us_yellow()
-    own_team = frame.robots_yellow if us_yellow else frame.robots_blue
-    opp_team = frame.robots_blue if us_yellow else frame.robots_yellow
+    if is_yellow is None:
+        is_yellow = bool(wm.us_yellow())
+    own_team = frame.robots_yellow if is_yellow else frame.robots_blue
+    opp_team = frame.robots_blue if is_yellow else frame.robots_yellow
 
     return Snapshot(
         ball_position=ball_pos,

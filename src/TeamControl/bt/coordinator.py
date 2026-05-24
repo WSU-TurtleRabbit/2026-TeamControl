@@ -62,10 +62,16 @@ class Coordinator:
     def __init__(
         self,
         trees: dict[RoleType, Any],
+        role_assignment: dict[int, RoleType] | None = None,
     ) -> None:
         self.trees = trees
         # Per-robot blackboards — created lazily on first tick for each robot.
         self.blackboards: dict[int, RobotBlackboard] = {}
+        # Per-instance role map; defaults to the module-level ROLE_ASSIGNMENT
+        # so existing single-team callers keep working.
+        self.role_assignment: dict[int, RoleType] = (
+            dict(role_assignment) if role_assignment is not None else dict(ROLE_ASSIGNMENT)
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -96,7 +102,7 @@ class Coordinator:
                 # Robot absent from snapshot — skip gracefully.
                 continue
 
-            role = ROLE_ASSIGNMENT.get(robot_id, RoleType.SUPPORTER)
+            role = self.role_assignment.get(robot_id, RoleType.SUPPORTER)
 
             # Create or update the per-robot blackboard.
             if robot_id not in self.blackboards:
