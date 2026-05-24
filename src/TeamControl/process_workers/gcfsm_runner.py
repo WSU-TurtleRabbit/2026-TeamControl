@@ -161,6 +161,10 @@ class GCfsm (BaseWorker):
         self.update_state(new_ref_msg.command, new_ref_msg.stage)
         self.current_stage = new_ref_msg.stage
         self.current_command = new_ref_msg.command
+        # Forward ball placement target whenever it is present
+        if new_ref_msg.designated_position is not None:
+            pos = (new_ref_msg.designated_position.x, new_ref_msg.designated_position.y)
+            self.output_q.put_nowait((PacketType.BALL_PLACEMENT_POS, pos))
 
     def update_state(self,command,stage):
         if not isinstance(command,Command) or not isinstance(stage,Stage):

@@ -49,11 +49,20 @@ from TeamControl.bt.skills.move_to import move_to
 from TeamControl.network.robot_command import RobotCommand
 from TeamControl.SSL.game_controller.common import GameState
 
-# Map the 2026 GameState enum into the BT's GamePhase string enum.
+# Map every GC-produced GameState into the BT's GamePhase.
+# The GC FSM already resolves ours-vs-theirs before storing GameState,
+# so no extra colour check is needed here.
 _PHASE_MAP = {
-    GameState.HALTED: GamePhase.HALTED,
-    GameState.STOPPED: GamePhase.STOPPED,
-    GameState.RUNNING: GamePhase.RUNNING,
+    GameState.HALTED:          GamePhase.HALTED,
+    GameState.HALF_TIME:       GamePhase.HALF_TIME,
+    GameState.STOPPED:         GamePhase.STOPPED,
+    GameState.PREPARE_KICKOFF: GamePhase.PREPARE_KICKOFF,
+    GameState.KICKOFF:         GamePhase.KICKOFF,
+    GameState.FREE_KICK:       GamePhase.FREE_KICK,
+    GameState.BALL_PLACEMENT:  GamePhase.BALL_PLACEMENT,
+    GameState.PENALTY_SHOOT:   GamePhase.PENALTY_SHOOT,
+    GameState.PENALTY_DEFEND:  GamePhase.PENALTY_DEFEND,
+    GameState.RUNNING:         GamePhase.RUNNING,
 }
 
 
@@ -104,6 +113,9 @@ def build_snapshot_from_world_model(wm) -> Snapshot | None:
     own_team = frame.robots_yellow if us_yellow else frame.robots_blue
     opp_team = frame.robots_blue if us_yellow else frame.robots_yellow
 
+    raw_placement = wm.get_ball_placement_pos()
+    placement_pos = (float(raw_placement[0]), float(raw_placement[1])) if raw_placement else None
+
     return Snapshot(
         ball_position=ball_pos,
         ball_velocity=ball_vel,
@@ -112,6 +124,7 @@ def build_snapshot_from_world_model(wm) -> Snapshot | None:
         referee_state=RefereeState(
             game_phase=_phase_from_state(wm.get_game_state()),
             score=(0, 0),  # TODO: read from wm.ref_data once exposed
+            ball_placement_pos=placement_pos,
         ),
     )
 
@@ -138,6 +151,7 @@ def intent_to_motion_target(
                 robot_id,
                 intent.target_pos,
                 intent.target_orientation,
+                intent.max_speed,
             )
         if isinstance(intent, IntentKick):
             return kick_at(snapshot, robot_id, intent.target_pos)

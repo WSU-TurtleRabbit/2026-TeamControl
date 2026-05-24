@@ -10,6 +10,7 @@ class PacketType(Enum): # for message sending onto gc_queue
     NEW_STATE = auto()
     SWITCH_TEAM = auto()
     BLF_LOCATION = auto()
+    BALL_PLACEMENT_POS = auto()  # designated_position from referee message
 
 class GameState(Enum):
     HALTED = auto()

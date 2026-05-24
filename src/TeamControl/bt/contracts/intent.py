@@ -27,6 +27,9 @@ class IntentMove:
 
     target_pos: tuple[float, float]
     target_orientation: float | None
+    # Optional speed cap in m/s. None means use the skill's default (2.0 m/s).
+    # Set to 1.4 during STOPPED to comply with the SSL < 1.5 m/s rule.
+    max_speed: float | None = None
 
 
 @dataclasses.dataclass(frozen=True)

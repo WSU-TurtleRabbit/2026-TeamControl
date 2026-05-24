@@ -35,14 +35,15 @@ DEFAULT_ROBOT_IDS: list[int] = [0, 1, 2, 3, 4, 5]
 TICK_PERIOD: float = 0.01
 
 
-def _build_coordinator() -> Coordinator:
+def _build_coordinator(us_positive: bool) -> Coordinator:
     return Coordinator(
         trees={
             RoleType.GOALIE: GoalieTree(),
             RoleType.DEFENDER: DefenderTree(),
             RoleType.SUPPORTER: SupporterTree(),
             RoleType.ATTACKER: AttackerTree(),
-        }
+        },
+        us_positive=us_positive,
     )
 
 
@@ -64,8 +65,8 @@ def run_bt_v2_process(
     if robot_ids is None:
         robot_ids = DEFAULT_ROBOT_IDS
 
-    coordinator = _build_coordinator()
     is_yellow = bool(wm.us_yellow())
+    coordinator = _build_coordinator(us_positive=bool(wm.us_positive()))
 
     while is_running.is_set():
         snapshot = build_snapshot_from_world_model(wm)

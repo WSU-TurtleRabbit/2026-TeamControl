@@ -1,5 +1,6 @@
 from multiprocessing import Process, Queue, Event
 from TeamControl.process_workers.vision_runner import VisionProcess
+from TeamControl.process_workers.gcfsm_runner import GCfsm
 from TeamControl.world.model_manager import WorldModelManager
 from TeamControl.process_workers.wm_runner import WMWorker
 from TeamControl.SSL.grSim.sandbox_process import run_grsim_sandbox_process
@@ -24,6 +25,12 @@ def main():
         args=(is_running, None, vision_q, True, vision_port),
     )
 
+    # Game controller FSM — reads referee messages and fills gc_q with game states
+    gc_wkr = Process(
+        target=GCfsm.run_worker,
+        args=(is_running, None, gc_q, preset.us_yellow, preset.us_positive),
+    )
+
     # World model
     wm_manager = WorldModelManager()
     wm_manager.start()
@@ -46,11 +53,13 @@ def main():
     )
 
     vision_wkr.start()
+    gc_wkr.start()
     wmr.start()
     bt.start()
     dispatcher.start()
 
     vision_wkr.join()
+    gc_wkr.join()
     wmr.join()
     bt.join()
     dispatcher.join()
