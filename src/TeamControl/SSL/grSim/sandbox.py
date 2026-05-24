@@ -4,6 +4,7 @@ from TeamControl.world.model_manager import WorldModelManager
 from TeamControl.process_workers.wm_runner import WMWorker
 # from TeamControl.utils.dummy_process import DummyReader
 from TeamControl.SSL.grSim.sandbox_process import run_grsim_sandbox_process
+from TeamControl.bt.run_bt_v2_process import run_bt_v2_process
 
 # in multiprocessing this can only be a simple process
 
@@ -26,7 +27,8 @@ def main():
     wm = wm_manager.WorldModel()
     wmr = Process(target=WMWorker.run_worker, args=(is_running,None,wm,vision_q,gc_q,))
     sandbox = Process(target=run_grsim_sandbox_process, args=(wm,) )
-    bt = Process(target=run_bt_process, args=(wm,dispatcher_q,) )
+    # new version
+    bt = Process(target=run_bt_v2_process, args=(is_running, wm, dispatcher_q,))
 
     vision_wkr.start()
     wmr.start()
