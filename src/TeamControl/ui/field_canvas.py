@@ -21,7 +21,7 @@ from PySide6.QtGui import (QPainter, QPen, QBrush, QColor, QFont,
 from TeamControl.ui.theme import (FIELD_GREEN, FIELD_LINE, YELLOW_TEAM,
                                    BLUE_TEAM, BALL_COLOR, BG_DARK, ACCENT,
                                    ROLE_GOALIE, ROLE_ATTACKER, ROLE_SUPPORT,
-                                   ROLE_DEFENDER, TEXT)
+                                   ROLE_DEFENDER, TEXT, BG_PANEL, BG_MID, BORDER)
 from TeamControl.robot.constants import (
     FIELD_LENGTH, FIELD_WIDTH, HALF_LEN, HALF_WID,
     PENALTY_DEPTH, PENALTY_WIDTH, CENTER_RADIUS,
@@ -114,7 +114,7 @@ class FieldCanvas(QWidget):
     def _build_zoom_overlay(self):
         self._zoom_overlay = QWidget(self)
         self._zoom_overlay.setStyleSheet(
-            "QWidget { background: #1e1e2e; border: 1px solid #444; border-radius: 5px; }"
+            f"QWidget {{ background: {BG_MID}; border: 1px solid {BORDER}; border-radius: 5px; }}"
         )
 
         lay = QHBoxLayout(self._zoom_overlay)
@@ -122,14 +122,14 @@ class FieldCanvas(QWidget):
         lay.setSpacing(4)
 
         icon = QLabel("🔍")
-        icon.setStyleSheet("background: transparent; border: none; font-size: 14px; color: #cccccc;")
+        icon.setStyleSheet(f"background: transparent; border: none; font-size: 14px; color: {TEXT};")
         lay.addWidget(icon)
 
         btn_style = (
-            "QPushButton { background: #2a2a3e; color: #ffffff; border: none;"
-            " border-radius: 3px; font-size: 16px; font-weight: bold; padding: 0px; }"
-            "QPushButton:hover { background: #3a3a5e; }"
-            "QPushButton:pressed { background: #e94560; }"
+            f"QPushButton {{ background: {BG_PANEL}; color: {TEXT}; border: none;"
+            f" border-radius: 3px; font-size: 16px; font-weight: bold; padding: 0px; }}"
+            f"QPushButton:hover {{ background: {ACCENT}; color: white; }}"
+            f"QPushButton:pressed {{ background: {ACCENT}; color: white; }}"
         )
         for text, tip, slot in [
             ("+", "Zoom In",     self._zoom_in),
