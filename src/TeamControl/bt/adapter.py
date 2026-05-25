@@ -81,7 +81,8 @@ def _ball_pos_vel(frame) -> tuple[tuple[float, float], tuple[float, float]]:
     ball = frame.ball if frame is not None else None
     if ball is None:
         return (0.0, 0.0), (0.0, 0.0)
-    return (float(ball.x), float(ball.y)), (0.0, 0.0)
+    # Vision protocol sends positions in mm; BT uses metres.
+    return (float(ball.x) / 1000.0, float(ball.y) / 1000.0), (0.0, 0.0)
 
 
 def _team_to_states(team) -> tuple[RobotState, ...]:
@@ -90,7 +91,8 @@ def _team_to_states(team) -> tuple[RobotState, ...]:
         out.append(
             RobotState(
                 robot_id=int(robot.id),
-                position=(float(robot.x), float(robot.y)),
+                # Vision protocol sends positions in mm; BT uses metres.
+                position=(float(robot.x) / 1000.0, float(robot.y) / 1000.0),
                 orientation=float(robot.o),
             )
         )

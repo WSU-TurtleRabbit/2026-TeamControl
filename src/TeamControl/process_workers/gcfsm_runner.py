@@ -41,11 +41,10 @@ class GCfsm (BaseWorker):
     def step(self):
         # listen from GameControl socket
         new_data = self.recv.listen()
-        # if the socket says None
+        # if the socket says None (timeout — no GC connected yet)
         if new_data is None:
-            self.logger.error("[GCP] received None from Socket")
-            # time.sleep(1) # wait one sec
-            raise AttributeError("received None from Socket") # if this is none, continue
+            print("[GCfsm] waiting for GC packet on 224.5.23.1:10003 ...", flush=True)
+            return  # just wait, don't crash
         
         new_ref_msg:RefereeMessage = RefereeMessage.from_proto(new_data)
         # no previous packets
@@ -195,7 +194,7 @@ class GCfsm (BaseWorker):
                 state = GameState.RUNNING
                     
             elif self.current_command == Command.PREPARE_PENALTY_YELLOW:
-                state = GameState.PENALTY_SHOOT if self.us_yellow is False else GameState.PENALTY_DEFEND
+                state = GameState.PENALTY_SHOOT if self.us_yellow is True else GameState.PENALTY_DEFEND
             elif self.current_command == Command.PREPARE_PENALTY_BLUE:
                 state = GameState.PENALTY_SHOOT if self.us_yellow is False else GameState.PENALTY_DEFEND
             
