@@ -1,4 +1,5 @@
 from TeamControl.network.robot_command import RobotCommand
+from TeamControl.robot.constants import CMD_RUNTIME
 
 class CommandManager:
     def __init__(self, isYellow, robot_id, dispatcher_q):
@@ -10,7 +11,7 @@ class CommandManager:
         self.w = 0.0
         self.dribble = False
         self.kick = False
-        self.run_time = 1  # second
+        self.run_time = CMD_RUNTIME  # failsafe command-hold expiry (s)
 
     def __repr__(self):
         return str(self._to_command())

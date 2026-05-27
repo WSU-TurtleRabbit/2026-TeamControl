@@ -1,5 +1,6 @@
 from TeamControl.network.robot_command import RobotCommand
-from .cmd_mgr import CommandManager 
+from TeamControl.robot.constants import CMD_RUNTIME
+from .cmd_mgr import CommandManager
 import py_trees
 import random
 
@@ -77,7 +78,7 @@ class GetBallPosition(py_trees.behaviour.Behaviour):
             return py_trees.common.Status.FAILURE
 
 class SendRobotCommand(py_trees.behaviour.Behaviour):
-    def __init__(self,dispatcher_q,runtime=1):
+    def __init__(self,dispatcher_q,runtime=CMD_RUNTIME):
         name = "SendRobotCommand"
         self.dispatcher_q = dispatcher_q
         self.runtime = runtime

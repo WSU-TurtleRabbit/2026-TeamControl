@@ -4,6 +4,9 @@ from TeamControl.process_workers.worker import BaseWorker
 from TeamControl.network.robot_command import RobotCommand
 from TeamControl.network.sender import Sender
 from TeamControl.network.ssl_sockets import grSimSender
+from TeamControl.robot.constants import (
+    ROBOT_CMD_INTERVAL, DISPATCH_LOOP_INTERVAL, CMD_STATS_INTERVAL,
+)
 import time
 from pathlib import Path
 
@@ -22,6 +25,10 @@ class Dispatcher(BaseWorker):
         self.running_commands = {}
         self._info_q = None
         self._last_info_time = 0
+        # Send-rate / command-age telemetry (reset each CMD_STATS_INTERVAL).
+        self._stats_window_start = 0.0
+        self._stats_sends = {}     # key -> real-robot sends this window
+        self._stats_age_sum = {}   # key -> sum of (sent_at - command.time_set)
         
     
     def setup(self,*args):
@@ -95,8 +102,13 @@ class Dispatcher(BaseWorker):
         self.handle_commands(now)
         self.check_command_timeout(now)
         self._publish_info(now)
-    
-        
+        self._log_rate_stats(now)
+        # Cap the loop so it doesn't busy-spin a core (which floods grSim and
+        # starves the control processes). Real-robot send rate is governed
+        # separately by ROBOT_CMD_INTERVAL inside send_command.
+        time.sleep(DISPATCH_LOOP_INTERVAL)
+
+
     def shutdown(self):
         print("reseting all robots to 0 ")
         self.reset_all_robots()
@@ -172,12 +184,40 @@ class Dispatcher(BaseWorker):
 
         key = (shell_id, isYellow)
         last = self._last_sent_per_robot.get(key, 0)
-        if last + 0.05 < now:
+        if last + ROBOT_CMD_INTERVAL < now:
             self.r_sender.send(command,robot_dict["ip"],robot_dict["port"])
             self._last_sent_per_robot[key] = now
             self._send_counts[key] = self._send_counts.get(key, 0) + 1
+            # Telemetry: how often we reach the robot, and how stale the
+            # command is when it leaves (now - when the controller built it).
+            self._stats_sends[key] = self._stats_sends.get(key, 0) + 1
+            self._stats_age_sum[key] = (
+                self._stats_age_sum.get(key, 0.0) + (now - command.time_set))
 
     
+    def _log_rate_stats(self, now):
+        """Periodically log the actual real-robot send rate (Hz) and mean
+        command age (ms) per robot. Use this to (a) confirm the robot is
+        receiving commands at ~ROBOT_CMD_HZ, and (b) spot commands going
+        stale (age climbing = the controller stopped feeding fresh ones)."""
+        if self._stats_window_start == 0.0:
+            self._stats_window_start = now
+            return
+        elapsed = now - self._stats_window_start
+        if elapsed < CMD_STATS_INTERVAL:
+            return
+        for key, count in self._stats_sends.items():
+            if count <= 0:
+                continue
+            hz = count / elapsed
+            mean_age_ms = (self._stats_age_sum.get(key, 0.0) / count) * 1000.0
+            self.logger.info(
+                f"[rate] robot {key}: {hz:.1f} Hz to real robot, "
+                f"mean cmd age {mean_age_ms:.1f} ms")
+        self._stats_window_start = now
+        self._stats_sends.clear()
+        self._stats_age_sum.clear()
+
     def _publish_info(self, now):
         if self._info_q is None or now - self._last_info_time < 0.25:
             return

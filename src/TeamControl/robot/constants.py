@@ -155,3 +155,29 @@ INTERCEPT_STEPS   = 12       # number of prediction steps
 LOOP_RATE         = 0.016    # ~60 Hz main loop sleep
 FRAME_INTERVAL    = 0.04     # ~25 Hz frame fetch interval
 KICK_COOLDOWN     = 5.0      # seconds between kicks (hardware limit)
+
+# ── Dispatcher / real-robot command timing ───────────────────────
+# Rate at which UDP commands are sent to a *real* robot, per robot.
+# Was effectively 20 Hz (a hard-coded 0.05 s gate in dispatch.py), which
+# throttled the robot well below the ~60 Hz control loop and added up to
+# 50 ms of command latency. Matching the control rate removes that lag.
+# NOTE: bounded by radio bandwidth — if hardware shows dropped packets or
+# link saturation, LOWER this Hz (raise the interval).
+ROBOT_CMD_HZ           = 60
+ROBOT_CMD_INTERVAL     = 1.0 / ROBOT_CMD_HZ
+
+# Dispatcher loop cadence. The loop previously ran with no sleep, busy-
+# spinning a core (flooding grSim every iteration and starving the 60 Hz
+# control processes of CPU, adding timing jitter). Cap to a fixed cadence.
+DISPATCH_LOOP_HZ       = 200
+DISPATCH_LOOP_INTERVAL = 1.0 / DISPATCH_LOOP_HZ
+
+# How often the dispatcher logs send-rate / command-age telemetry (s).
+CMD_STATS_INTERVAL     = 2.0
+
+# Default command-hold expiry (s) for the behaviour-tree path. This is a
+# FAILSAFE: if the brain stops sending, the dispatcher resets the robot to
+# idle after this long. Was 1 s (BT) / 2 s (test) — long enough for a real
+# robot to drive blind into a wall on a stall. The AI controllers already
+# use 0.15 s; this matches that order of magnitude.
+CMD_RUNTIME            = 0.2
