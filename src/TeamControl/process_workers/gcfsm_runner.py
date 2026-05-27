@@ -126,23 +126,29 @@ class GCfsm (BaseWorker):
         
     def check_color_side(self,new_ref_msg:RefereeMessage):
         our_team_name :str = "TurtleRabbit"
-        us_positive:bool = None
-        us_yellow:bool = None
-        
+        # Default to the CURRENT values rather than None. If the referee message
+        # doesn't carry information about a field (no team name match, or no
+        # blue_team_on_positive_half), we leave the existing value alone. This
+        # preserves the YAML defaults (e.g. us_yellow: true) when the GC isn't
+        # configured to name a team "TurtleRabbit".
+        us_yellow:bool = self.us_yellow
+        us_positive:bool = self.us_positive
+
         if new_ref_msg.yellow.name == our_team_name:
             us_yellow = True
         elif new_ref_msg.blue.name == our_team_name:
             us_yellow = False
-        
+        # else: leave us_yellow at its previous value (do not reset to None)
+
         # self.update_cards()
-        
+
         if new_ref_msg.blue_team_on_positive_half is None:
-            pass
+            pass  # leave us_positive at its previous value
         elif new_ref_msg.blue_team_on_positive_half is True:
             us_positive = False if  us_yellow == True else True
         elif new_ref_msg.blue_team_on_positive_half is False:
             us_positive = True if  us_yellow == True else False
-        
+
         if self.us_yellow != us_yellow or self.us_positive != us_positive:
             self.us_yellow = us_yellow
             self.us_positive = us_positive
