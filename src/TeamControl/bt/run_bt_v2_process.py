@@ -13,8 +13,12 @@ Pipeline each tick:
 """
 from __future__ import annotations
 
+import json
 import time
+from dataclasses import asdict, is_dataclass
+from datetime import datetime
 from multiprocessing import Event, Queue
+from pathlib import Path
 
 from TeamControl.bt.adapter import (
     build_snapshot_from_world_model,
@@ -47,6 +51,26 @@ DEFAULT_ROBOT_IDS: list[int] = [0, 1, 2, 3, 4, 5]
 
 # Target tick period in seconds (100 Hz).
 TICK_PERIOD: float = 0.01
+
+# Log every Nth tick to disk. 10 = ~10 Hz traces.
+LOG_EVERY_N_TICKS: int = 10
+
+# Output directory for BT trace logs.
+LOG_DIR: Path = Path(__file__).resolve().parents[3] / "out"
+
+
+def _intent_to_dict(intent) -> dict | None:
+    if intent is None:
+        return None
+    if is_dataclass(intent):
+        return {"type": type(intent).__name__, **asdict(intent)}
+    return {"type": type(intent).__name__, "repr": repr(intent)}
+
+
+def _open_log_file() -> Path:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return LOG_DIR / f"bt_trace_{stamp}.jsonl"
 
 
 def _build_coordinator(us_positive: bool) -> Coordinator:
@@ -81,7 +105,10 @@ def run_bt_v2_process(
 
     is_yellow = bool(wm.us_yellow())
     coordinator = _build_coordinator(us_positive=bool(wm.us_positive()))
+    log_path = _open_log_file()
+    log_fh = log_path.open("w", buffering=1)  # line-buffered
     print(f"[BT] started — yellow={is_yellow}, robot_ids={robot_ids}")
+    print(f"[BT] trace log → {log_path}")
 
     last_phase = None
     tick_count = 0
@@ -102,9 +129,34 @@ def run_bt_v2_process(
 
             coordinator.tick(snapshot, robot_ids)
 
-            # Print intents every 100 ticks (~1 sec)
             tick_count += 1
+
+            # Log to disk every Nth tick.
+            if tick_count % LOG_EVERY_N_TICKS == 0:
+                record = {
+                    "tick": tick_count,
+                    "phase": phase.value,
+                    "ball": list(snapshot.ball_position),
+                    "robots": {},
+                }
+                for rid in robot_ids:
+                    bb = coordinator.blackboards.get(rid)
+                    if bb is None:
+                        continue
+                    robot = next(
+                        (r for r in snapshot.own_robots if r.robot_id == rid), None
+                    )
+                    record["robots"][str(rid)] = {
+                        "role": bb.current_role.value,
+                        "pos": list(robot.position) if robot else None,
+                        "orientation": robot.orientation if robot else None,
+                        "intent": _intent_to_dict(bb.current_intent),
+                    }
+                log_fh.write(json.dumps(record) + "\n")
+
+            # Print intents every 100 ticks (~1 sec)
             if tick_count % 100 == 0:
+                print(f"[BT] ball={snapshot.ball_position}")
                 print(f"[BT] tick={tick_count} phase={phase.value}", flush=True)
                 for rid in robot_ids:
                     bb = coordinator.blackboards.get(rid)
@@ -124,3 +176,8 @@ def run_bt_v2_process(
             time.sleep(TICK_PERIOD)
     except KeyboardInterrupt:
         print("[BT] KeyboardInterrupt — exiting", flush=True)
+    finally:
+        try:
+            log_fh.close()
+        except Exception:
+            pass

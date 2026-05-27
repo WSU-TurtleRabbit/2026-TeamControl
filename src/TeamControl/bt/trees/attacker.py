@@ -203,20 +203,27 @@ class AttackerTree:
         go_to_ball.add_child(IsBallInRangeOrMove(self))
 
         # PassOrPlaySequence — check for supporter first, then pass.
-        pass_or_play = py_trees.composites.Sequence(
-            name="PassOrPlaySequence", memory=False
-        )
-        pass_or_play.add_children([
-            IsSupporterAvailable(self),
-            PassToSupporter(self),
-        ])
+        # TEMPORARILY DISABLED: the pass branch caused an oscillation around
+        # the BALL_IN_RANGE_THRESHOLD ring (attacker would enter range, get
+        # told to drive at a supporter, exit range, get told to chase ball,
+        # repeat — never touching the ball). Re-enable once we have a real
+        # "has ball" predicate to gate possession-vs-pursuit.
+        # pass_or_play = py_trees.composites.Sequence(
+        #      name="PassOrPlaySequence", memory=False
+        # )
+        # pass_or_play.add_children([
+        #     IsSupporterAvailable(self),
+        #     PassToSupporter(self),
+        # ])
 
-        # PassPlaySelector — tries pass, dribble, then kick.
+        # PassPlaySelector — pass branch disabled; falls straight through to
+        # HoldPossession (dribble toward goal). ShootAtGoal kept as a final
+        # fallback even though HoldPossession always succeeds.
         pass_play_selector = py_trees.composites.Selector(
             name="PassPlaySelector", memory=False
         )
         pass_play_selector.add_children([
-            pass_or_play,
+            # pass_or_play,
             HoldPossession(self),
             ShootAtGoal(self),
         ])
