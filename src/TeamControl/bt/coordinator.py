@@ -34,10 +34,10 @@ from TeamControl.bt.contracts.snapshot import GamePhase, Snapshot
 # index 0 → GOALIE, 1-2 → DEFENDER, 3-4 → SUPPORTER, 5 → ATTACKER
 ROLE_ASSIGNMENT: dict[int, RoleType] = {
     0: RoleType.GOALIE,
-    1: RoleType.DEFENDER,
-    2: RoleType.DEFENDER,
-    3: RoleType.SUPPORTER,
-    4: RoleType.SUPPORTER,
+    1: RoleType.ATTACKER,
+    2: RoleType.ATTACKER,
+    3: RoleType.ATTACKER,
+    4: RoleType.ATTACKER,
     5: RoleType.ATTACKER,
 }
 
@@ -393,22 +393,53 @@ class Coordinator:
         return intents
 
     def _handle_free_kick(self, snapshot: Snapshot, robot_ids: list[int]) -> list[Intent]:
-        """FREE_KICK: attacker drives to ball; others hold current positions."""
+        """FREE_KICK: closest non-goalie robot kicks; others hold current positions."""
+        # Pick the closest robot to the ball (excluding goalie) as the kicker.
+        kicker_id: int | None = None
+        best_dist = float("inf")
+        for robot_id in robot_ids:
+            if ROLE_ASSIGNMENT.get(robot_id) == RoleType.GOALIE:
+                continue
+            robot = _find_robot(snapshot, robot_id)
+            if robot is None:
+                continue
+            d = math.hypot(
+                robot.position[0] - snapshot.ball_position[0],
+                robot.position[1] - snapshot.ball_position[1],
+            )
+            if d < best_dist:
+                best_dist = d
+                kicker_id = robot_id
+
+        from TeamControl.bt.contracts.intent import IntentKick
         intents: list[Intent] = []
         for robot_id in robot_ids:
             robot = _find_robot(snapshot, robot_id)
             if robot is None:
                 continue
             bb = self.blackboards[robot_id]
-            if ROLE_ASSIGNMENT.get(robot_id) == RoleType.ATTACKER:
-                bb.current_intent = IntentMove(
-                    target_pos=snapshot.ball_position, target_orientation=None
-                )
-            else:
+            if robot_id == kicker_id:
+                bb.current_intent = IntentKick(target_pos=OPP_GOAL)
+                intents.append(bb.current_intent)
+            elif ROLE_ASSIGNMENT.get(robot_id) == RoleType.GOALIE:
                 bb.current_intent = IntentMove(
                     target_pos=robot.position, target_orientation=None
                 )
-            intents.append(bb.current_intent)
+                intents.append(bb.current_intent)
+            else:
+                # Let the BT decide for non-kicker attackers.
+                bb.last_intent = bb.current_intent
+                bb.current_intent = None
+                tree = self.trees[bb.current_role]
+                if hasattr(tree, "set_snapshot") and hasattr(tree, "tick"):
+                    tree.set_snapshot(snapshot)
+                    tree.tick(bb)
+                else:
+                    if hasattr(tree, "_blackboard_ref"):
+                        tree._blackboard_ref[0] = bb
+                    tree.tick_once()
+                if bb.current_intent is not None:
+                    intents.append(bb.current_intent)
         return intents
 
     def _handle_penalty_defend(

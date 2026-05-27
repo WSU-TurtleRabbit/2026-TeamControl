@@ -182,9 +182,9 @@ class GCfsm (BaseWorker):
         elif command == Command.FORCE_START:
             state = GameState.RUNNING
         elif command in {Command.DIRECT_FREE_YELLOW, Command.INDIRECT_FREE_YELLOW}:
-            state = GameState.FREE_KICK if self.us_yellow is True else GameState.RUNNING 
+            state = GameState.FREE_KICK if self.us_yellow is True else GameState.STOPPED
         elif command in {Command.DIRECT_FREE_BLUE, Command.INDIRECT_FREE_BLUE}:
-            state = GameState.FREE_KICK if self.us_yellow is False else GameState.RUNNING
+            state = GameState.FREE_KICK if self.us_yellow is False else GameState.STOPPED
         elif command == Command.NORMAL_START:
             if self.current_command == Command.PREPARE_KICKOFF_YELLOW:
                 state = GameState.KICKOFF if self.us_yellow is True else GameState.HALTED
