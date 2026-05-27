@@ -1,0 +1,8 @@
+{
+  "robot_1": { "linear": { "kp": 1.0, "kd": 1.0 }, "turning": { "kp": 1.0, "kd": 1.0 } },
+  "robot_2": { "linear": { "kp": 0.5, "kd": 1.0 }, "turning": { "kp": 1.0, "kd": 1.0 } },
+  "robot_3": { "linear": { "kp": 1.0, "kd": 0.5 }, "turning": { "kp": 1.0, "kd": 1.0 } },
+  "robot_4": { "linear": { "kp": 1.0, "kd": 1.0 }, "turning": { "kp": 1.0, "kd": 1.0 } },
+  "robot_5": { "linear": { "kp": 1.0, "kd": 1.0 }, "turning": { "kp": 1.0, "kd": 1.0 } },
+  "robot_6": { "linear": { "kp": 1.0, "kd": 1.0 }, "turning": { "kp": 1.0, "kd": 1.0 } }
+}

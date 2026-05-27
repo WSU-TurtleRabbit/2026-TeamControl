@@ -33,7 +33,7 @@ class Harness:
         self._runner.send(vx, vy, w, kick = kick, dribble = dribble)
         position = self._runner.read_position()
         if position is None:
-            x_pos = y_pos = theta_pos = ""
+            x_pos = y_pos = theta_pos = None
         else:
             x_pos, y_pos, theta_pos = position
         t_ms = (time.monotonic() - self._t0) * 1000

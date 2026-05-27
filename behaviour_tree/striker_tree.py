@@ -151,7 +151,7 @@ class CalculateStrikerAction(py_trees.behaviour.Behaviour):
                 aim = (ax, ay)
 
         try:
-            behind = RobotMovement.behind_ball_point(intercept, aim, BEHIND_MM)
+            behind = RobotMovement.shooting_pos(intercept, aim, BEHIND_MM)
         except ValueError:
             behind = intercept
 
