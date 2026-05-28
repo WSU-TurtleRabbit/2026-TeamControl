@@ -10,6 +10,8 @@ from TeamControl.utils.yaml_config import Config
 
 
 def main():
+    import multiprocessing
+    multiprocessing.freeze_support()
     vision_port = 10006
     is_running = Event()
     is_running.set()
