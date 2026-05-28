@@ -57,6 +57,7 @@ _PHASE_MAP = {
     GameState.HALF_TIME:       GamePhase.HALF_TIME,
     GameState.STOPPED:         GamePhase.STOPPED,
     GameState.PREPARE_KICKOFF: GamePhase.PREPARE_KICKOFF,
+    GameState.OPP_KICKOFF:    GamePhase.OPP_KICKOFF,
     GameState.KICKOFF:         GamePhase.KICKOFF,
     GameState.FREE_KICK:       GamePhase.FREE_KICK,
     GameState.BALL_PLACEMENT:  GamePhase.BALL_PLACEMENT,

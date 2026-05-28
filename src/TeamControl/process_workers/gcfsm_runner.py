@@ -169,9 +169,9 @@ class GCfsm (BaseWorker):
         if command == Command.STOP:
             state = GameState.STOPPED
         elif command == Command.PREPARE_KICKOFF_YELLOW:
-            state = GameState.PREPARE_KICKOFF if self.us_yellow is True else GameState.STOPPED
+            state = GameState.PREPARE_KICKOFF if self.us_yellow is True else GameState.OPP_KICKOFF
         elif command == Command.PREPARE_KICKOFF_BLUE:
-            state = GameState.PREPARE_KICKOFF if self.us_yellow is False else GameState.STOPPED
+            state = GameState.PREPARE_KICKOFF if self.us_yellow is False else GameState.OPP_KICKOFF
         elif command == Command.BALL_PLACEMENT_YELLOW:
             state = GameState.BALL_PLACEMENT if self.us_yellow is True else GameState.STOPPED
         elif command == Command.BALL_PLACEMENT_BLUE:

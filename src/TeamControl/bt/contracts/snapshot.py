@@ -20,6 +20,7 @@ class GamePhase(str, Enum):
     # Set-piece states (our team has the privilege)
     PREPARE_KICKOFF = "PREPARE_KICKOFF"   # move to kickoff positions
     KICKOFF = "KICKOFF"                   # attacker kicks off from centre
+    OPP_KICKOFF = "OPP_KICKOFF"          # opponent kickoff — all robots to own half
     FREE_KICK = "FREE_KICK"               # attacker takes free kick
     BALL_PLACEMENT = "BALL_PLACEMENT"     # we place the ball
     PENALTY_SHOOT = "PENALTY_SHOOT"       # we shoot a penalty

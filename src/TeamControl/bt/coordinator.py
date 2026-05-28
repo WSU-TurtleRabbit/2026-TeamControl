@@ -69,6 +69,18 @@ STOPPED_HOME_POSITIONS: dict[int, tuple[float, float]] = {
     5: (-1.5,  1.5),
 }
 
+# Defensive positions for when the OPPONENT has the kickoff.
+# All in own half (-x for us_positive=False), all outside center circle (r=0.5m).
+# Shape: goalie on line, two defenders wide, two midfielders covering channels, one at centre-half.
+OPP_KICKOFF_POSITIONS: dict[int, tuple[float, float]] = {
+    0: (-4.2,  0.0),   # goalie on goal line
+    1: (-3.0, -1.5),   # defender left
+    2: (-3.0,  1.5),   # defender right
+    3: (-2.0,  0.0),   # centre back
+    4: (-1.5, -1.2),   # mid left
+    5: (-1.5,  1.2),   # mid right
+}
+
 # FREE_KICK support positions — spread around ball area at legal distance (>0.5m from ball).
 # Kicker is assigned dynamically; these are fallback slots for non-kicker, non-goalie robots.
 FREE_KICK_SUPPORT_POSITIONS: list[tuple[float, float]] = [
@@ -227,10 +239,13 @@ class Coordinator:
         self._kickoff_kicker_id: int | None = None
         self._kickoff_kicker_ready: bool = False
         self._kickoff_needs_slot: set[int] = set()  # robots that must reach their slot
+        self._opp_kickoff_carry: bool = False
         self._last_phase: GamePhase | None = None
+        self._pre_halt_phase: GamePhase | None = None  # phase before HALTED
         if us_positive:
             # We are on +x half → own goal at +x, opponent goal at -x, attack toward -x.
             self._kickoff_pos = _mirror_positions(KICKOFF_POSITIONS)
+            self._opp_kickoff_pos = _mirror_positions(OPP_KICKOFF_POSITIONS)
             self._penalty_shoot_pos = _mirror_positions(PENALTY_SHOOT_POSITIONS)
             self._penalty_defend_pos = _mirror_positions(PENALTY_DEFEND_POSITIONS)
             self._stopped_home = _mirror_positions(STOPPED_HOME_POSITIONS)
@@ -245,6 +260,7 @@ class Coordinator:
             self._opp_goal = OPP_GOAL                         # (4.5, 0)
             self._own_goal_line_x = OWN_GOAL_LINE_X           # -4.5
             self._attack_sign: float = 1.0
+            self._opp_kickoff_pos = dict(OPP_KICKOFF_POSITIONS)
             self._stopped_home = dict(STOPPED_HOME_POSITIONS)
 
     # ------------------------------------------------------------------
@@ -269,8 +285,7 @@ class Coordinator:
             # Preserve kickoff state when GC skips straight from KICKOFF/PREPARE_KICKOFF
             # to RUNNING before the kicker has fired — we finish the kick in RUNNING.
             kickoff_carry = (
-                self._last_phase in (GamePhase.PREPARE_KICKOFF, GamePhase.KICKOFF)
-                and phase == GamePhase.RUNNING
+                phase == GamePhase.RUNNING
                 and self._kickoff_kicker_id is not None
                 and not self._kickoff_kicker_ready
             )
@@ -278,6 +293,15 @@ class Coordinator:
                 self._kickoff_kicker_id = None
                 self._kickoff_kicker_ready = False
             self._kickoff_needs_slot = set()
+            # Track pre-HALTED phase so carries can look through HALTED.
+            if self._last_phase not in (GamePhase.HALTED, GamePhase.HALF_TIME):
+                self._pre_halt_phase = self._last_phase
+            # Carry opp kickoff positioning into RUNNING — works through HALTED.
+            prior = self._pre_halt_phase
+            self._opp_kickoff_carry = (
+                prior == GamePhase.OPP_KICKOFF
+                and phase == GamePhase.RUNNING
+            )
             self._last_phase = phase
 
         if phase in (GamePhase.HALTED, GamePhase.HALF_TIME):
@@ -296,6 +320,9 @@ class Coordinator:
             self._lock_kickoff_kicker(snapshot, robot_ids)
             return self._handle_prepare_kickoff(snapshot, robot_ids)
 
+        if phase == GamePhase.OPP_KICKOFF:
+            return self._handle_opp_kickoff(snapshot, robot_ids)
+
         if phase == GamePhase.KICKOFF:
             return self._handle_kickoff(snapshot, robot_ids)
 
@@ -307,6 +334,23 @@ class Coordinator:
 
         if phase == GamePhase.PENALTY_DEFEND:
             return self._handle_penalty_defend(snapshot, robot_ids)
+
+        # RUNNING — finish opp kickoff positioning if carry is active.
+        if self._opp_kickoff_carry:
+            result = self._handle_opp_kickoff(snapshot, robot_ids)
+            # Clear carry once all robots are within 0.2m of their slots.
+            all_at_slot = True
+            for rid in robot_ids:
+                robot = _find_robot(snapshot, rid)
+                if robot is None:
+                    continue
+                slot = self._opp_kickoff_pos.get(rid, robot.position)
+                if math.hypot(robot.position[0] - slot[0], robot.position[1] - slot[1]) > 0.2:
+                    all_at_slot = False
+                    break
+            if all_at_slot:
+                self._opp_kickoff_carry = False
+            return result
 
         # RUNNING — if a kickoff kick hasn't fired yet, finish it first.
         if self._kickoff_kicker_id is not None:
@@ -362,6 +406,29 @@ class Coordinator:
             bb = self.blackboards[robot_id]
             target = positions.get(robot_id, KICKOFF_POSITIONS.get(robot_id, (0.0, 0.0)))
             bb.current_intent = IntentMove(target_pos=target, target_orientation=None)
+            intents.append(bb.current_intent)
+        return intents
+
+    def _handle_opp_kickoff(self, snapshot: Snapshot, robot_ids: list[int]) -> list[Intent]:
+        """OPP_KICKOFF: opponent has the kickoff — all our robots must be in own half,
+        outside the center circle. No kicker exception for us."""
+        CENTER_CIRCLE_R = 0.5
+        intents: list[Intent] = []
+        for robot_id in robot_ids:
+            robot = _find_robot(snapshot, robot_id)
+            if robot is None:
+                continue
+            bb = self.blackboards[robot_id]
+            rx, ry = robot.position
+            in_own_half = rx * self._attack_sign < 0
+            outside_circle = math.hypot(rx, ry) > CENTER_CIRCLE_R
+            slot = self._opp_kickoff_pos.get(robot_id, robot.position)
+            dist_to_slot = math.hypot(rx - slot[0], ry - slot[1])
+            if in_own_half and outside_circle and dist_to_slot < 0.15:
+                target = robot.position  # already at slot — hold
+            else:
+                target = slot  # always move to defensive slot
+            bb.current_intent = IntentMove(target_pos=target, target_orientation=None, max_speed=1.4)
             intents.append(bb.current_intent)
         return intents
 

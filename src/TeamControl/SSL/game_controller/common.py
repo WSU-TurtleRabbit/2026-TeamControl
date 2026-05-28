@@ -18,6 +18,7 @@ class GameState(Enum):
     STOPPED = auto()
     RUNNING = auto()
     PREPARE_KICKOFF = auto()
+    OPP_KICKOFF = auto()
 
     FREE_KICK = auto()
     BALL_PLACEMENT = auto()
