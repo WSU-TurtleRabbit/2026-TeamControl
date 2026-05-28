@@ -57,8 +57,8 @@ def main():
 
     wm_manager = WorldModelManager()
     wm_manager.start()
-    wm = wm_manager.WorldModel()
-
+    wm = wm_manager.WorldModel(us_yellow=preset.us_yellow, us_positive=preset.us_positive)
+    
     # ── Background processes (always needed) ──────────────────
     background = [
         Process(target=VisionProcess.run_worker,

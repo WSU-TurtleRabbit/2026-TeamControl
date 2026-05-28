@@ -67,8 +67,8 @@ class WorldModel:
                 self.ref_data.blue = game_data[1]
 
     def update_team(self, us_yellow: bool, us_positive: bool):
-        self.us_yellow = us_yellow
-        self.us_positive = us_positive
+        self._us_yellow = us_yellow
+        self._us_positive = us_positive
         self.robot_active = 6 # robots active
         self.blf_location = None
 

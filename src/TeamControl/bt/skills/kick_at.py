@@ -66,11 +66,20 @@ def kick_at(
         ValueError: If *robot_id* is not present in *snapshot*.
     """
     robot = _get_robot(snapshot, robot_id)
-    velocity = _proportional_velocity(robot.position, target_pos)
 
-    # Orientation: face the kick direction.
-    dx = target_pos[0] - robot.position[0]
-    dy = target_pos[1] - robot.position[1]
+    # Drive toward the ball at full speed — proportional slows to a crawl when
+    # close, producing a weak kick. Constant speed ensures a solid contact.
+    dx_b = snapshot.ball_position[0] - robot.position[0]
+    dy_b = snapshot.ball_position[1] - robot.position[1]
+    dist_b = math.hypot(dx_b, dy_b)
+    if dist_b < 1e-9:
+        velocity = (0.0, 0.0)
+    else:
+        velocity = (dx_b / dist_b * _MAX_SPEED, dy_b / dist_b * _MAX_SPEED)
+
+    # Orientation: face ball→target so the kick travels the right direction.
+    dx = target_pos[0] - snapshot.ball_position[0]
+    dy = target_pos[1] - snapshot.ball_position[1]
     orientation = math.atan2(dy, dx)
 
     return MotionTarget(

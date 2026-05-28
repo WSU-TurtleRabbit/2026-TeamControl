@@ -28,6 +28,7 @@ from TeamControl.bt.trees.defender import DefenderTree
 from TeamControl.bt.trees.goalie import GoalieTree
 from TeamControl.bt.trees.supporter import SupporterTree
 from TeamControl.network.robot_command import RobotCommand
+from TeamControl.utils.yaml_config import Config as _YamlConfig
 from TeamControl.world.model import WorldModel
 
 _HALT_PHASES = (GamePhase.HALTED, GamePhase.HALF_TIME)
@@ -50,7 +51,7 @@ TICK_PERIOD: float = 0.01
 
 
 def _build_coordinator(us_positive: bool) -> Coordinator:
-    return Coordinator(
+    c = Coordinator(
         trees={
             RoleType.GOALIE: GoalieTree(),
             RoleType.DEFENDER: DefenderTree(),
@@ -59,6 +60,8 @@ def _build_coordinator(us_positive: bool) -> Coordinator:
         },
         us_positive=us_positive,
     )
+    print(f"[BT] coordinator built — us_positive={us_positive} opp_goal={c._opp_goal} attack_sign={c._attack_sign}", flush=True)
+    return c
 
 
 def run_bt_v2_process(
@@ -79,9 +82,11 @@ def run_bt_v2_process(
     if robot_ids is None:
         robot_ids = DEFAULT_ROBOT_IDS
 
-    is_yellow = bool(wm.us_yellow())
-    coordinator = _build_coordinator(us_positive=bool(wm.us_positive()))
-    print(f"[BT] started — yellow={is_yellow}, robot_ids={robot_ids}")
+    _cfg = _YamlConfig()
+    is_yellow = bool(_cfg.us_yellow)
+    _us_positive = bool(_cfg.us_positive)
+    coordinator = _build_coordinator(us_positive=_us_positive)
+    print(f"[BT] started — yellow={is_yellow}, us_positive={_us_positive}, robot_ids={robot_ids}")
 
     last_phase = None
     tick_count = 0
@@ -105,11 +110,15 @@ def run_bt_v2_process(
             # Print intents every 100 ticks (~1 sec)
             tick_count += 1
             if tick_count % 100 == 0:
-                print(f"[BT] tick={tick_count} phase={phase.value}", flush=True)
+                bx, by = snapshot.ball_position
+                print(f"[BT] tick={tick_count} phase={phase.value} ball=({bx:.2f},{by:.2f})", flush=True)
+                robot_map = {r.robot_id: r for r in snapshot.own_robots}
                 for rid in robot_ids:
                     bb = coordinator.blackboards.get(rid)
                     if bb and bb.current_intent:
-                        print(f"  robot {rid} ({bb.current_role.value}): {bb.current_intent}", flush=True)
+                        r = robot_map.get(rid)
+                        pos_str = f"pos=({r.position[0]:.2f},{r.position[1]:.2f}) facing={r.orientation:.2f}rad" if r else "pos=N/A"
+                        print(f"  robot {rid} ({bb.current_role.value}) {pos_str}: {bb.current_intent}", flush=True)
 
             if phase in _HALT_PHASES:
                 _send_stop_commands(robot_ids, is_yellow, dispatcher_q)

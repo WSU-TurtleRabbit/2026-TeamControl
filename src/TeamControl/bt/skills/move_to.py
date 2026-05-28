@@ -71,7 +71,8 @@ def move_to(
     velocity = _proportional_velocity(
         robot.position, target_pos, max_speed=max_speed if max_speed is not None else _MAX_SPEED
     )
-    orientation = target_orientation if target_orientation is not None else 0.0
+    # Keep current orientation when none specified — avoids spinning to face 0.0.
+    orientation = target_orientation if target_orientation is not None else robot.orientation
     return MotionTarget(
         target_velocity=velocity,
         target_orientation=float(orientation),

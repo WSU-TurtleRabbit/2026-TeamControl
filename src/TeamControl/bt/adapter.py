@@ -185,7 +185,7 @@ def _angular_velocity_to_target(
 ) -> float:
     """Wrap angle error to [-pi, pi] and apply a proportional gain."""
     err = (target_orientation - current_orientation + math.pi) % (2 * math.pi) - math.pi
-    return float(err * gain)
+    return float(max(-6.0, min(6.0, err * gain)))
 
 
 def intent_to_robot_command(
@@ -206,7 +206,14 @@ def intent_to_robot_command(
     current_o = robot.orientation if robot is not None else 0.0
     w = _angular_velocity_to_target(current_o, target.target_orientation)
 
-    vx, vy = target.target_velocity
+    # Rotate world-frame velocity into robot-local frame.
+    # grSim expects veltangent/velnormal in the robot's own coordinate frame.
+    vx_w, vy_w = target.target_velocity
+    cos_o = math.cos(current_o)
+    sin_o = math.sin(current_o)
+    vx = vx_w * cos_o + vy_w * sin_o
+    vy = -vx_w * sin_o + vy_w * cos_o
+
     kick = 1 if isinstance(intent, (IntentKick, IntentPass)) else 0
     dribble = 1 if isinstance(intent, IntentDribble) else 0
 
