@@ -32,12 +32,13 @@ class GCfsm (BaseWorker):
         self.recv = GameControl(is_running=is_running)
 
     def setup(self,*args):
-        output_q, us_yellow, us_positive = args
+        output_q, us_yellow, us_positive, team_name = args
 
         self.output_q = output_q
         self.us_yellow = us_yellow
         self.us_positive = us_positive
-        self.logger.info (f"[GCP] : Setup Complete {self.output_q=}, {us_yellow=}, {us_positive=}")
+        self.team_name = team_name
+        self.logger.info (f"[GCP] : Setup Complete {self.output_q=}, {us_yellow=}, {us_positive=}, {team_name=}")
 
     def step(self):
         # listen from GameControl socket
@@ -124,7 +125,7 @@ class GCfsm (BaseWorker):
 
 
     def check_color_side(self,new_ref_msg:RefereeMessage):
-        our_team_name :str = "TurtleRabbit"
+        our_team_name :str = self.team_name
         us_positive:bool = None
         us_yellow:bool = None
 
@@ -179,14 +180,14 @@ class GCfsm (BaseWorker):
         elif command == Command.FORCE_START:
             state = GameState.RUNNING
         elif command in {Command.DIRECT_FREE_YELLOW, Command.INDIRECT_FREE_YELLOW}:
-            state = GameState.FREE_KICK if self.us_yellow is True else GameState.STOPPED
+            state = GameState.FREE_KICK if self.us_yellow is True else GameState.OPP_FREE_KICK
         elif command in {Command.DIRECT_FREE_BLUE, Command.INDIRECT_FREE_BLUE}:
-            state = GameState.FREE_KICK if self.us_yellow is False else GameState.STOPPED
+            state = GameState.FREE_KICK if self.us_yellow is False else GameState.OPP_FREE_KICK
         elif command == Command.NORMAL_START:
             if self.current_command == Command.PREPARE_KICKOFF_YELLOW:
-                state = GameState.KICKOFF if self.us_yellow is True else GameState.HALTED
+                state = GameState.KICKOFF if self.us_yellow is True else GameState.OPP_KICKOFF
             elif self.current_command == Command.PREPARE_KICKOFF_BLUE:
-                state = GameState.KICKOFF if self.us_yellow is False else GameState.HALTED
+                state = GameState.KICKOFF if self.us_yellow is False else GameState.OPP_KICKOFF
             elif self.current_command in {Command.DIRECT_FREE_BLUE, Command.DIRECT_FREE_YELLOW,
                                           Command.INDIRECT_FREE_BLUE, Command.INDIRECT_FREE_YELLOW}:
                 state = GameState.RUNNING

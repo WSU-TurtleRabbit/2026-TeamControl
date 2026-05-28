@@ -81,9 +81,9 @@ OPP_KICKOFF_POSITIONS: dict[int, tuple[float, float]] = {
     5: (-1.5,  1.2),   # mid right
 }
 
-# FREE_KICK support positions — spread around ball area at legal distance (>0.5m from ball).
+# FREE_KICK support offsets — relative to ball position, at legal distance (>0.5m from ball).
 # Kicker is assigned dynamically; these are fallback slots for non-kicker, non-goalie robots.
-FREE_KICK_SUPPORT_POSITIONS: list[tuple[float, float]] = [
+FREE_KICK_SUPPORT_OFFSETS: list[tuple[float, float]] = [
     (0.0, -1.2),   # slot 0 — left wing
     (0.0,  1.2),   # slot 1 — right wing
     (-0.8,  0.0),  # slot 2 — back centre
@@ -254,7 +254,7 @@ class Coordinator:
             self._attack_sign: float = -1.0
         else:
             # We are on -x half → own goal at -x, opponent goal at +x, attack toward +x.
-            self._kickoff_pos = KICKOFF_POSITIONS
+            self._kickoff_pos = dict(KICKOFF_POSITIONS)
             self._penalty_shoot_pos = PENALTY_SHOOT_POSITIONS
             self._penalty_defend_pos = PENALTY_DEFEND_POSITIONS
             self._opp_goal = OPP_GOAL                         # (4.5, 0)
@@ -328,6 +328,9 @@ class Coordinator:
 
         if phase == GamePhase.FREE_KICK:
             return self._handle_free_kick(snapshot, robot_ids)
+
+        if phase == GamePhase.OPP_FREE_KICK:
+            return self._handle_opp_free_kick(snapshot, robot_ids)
 
         if phase == GamePhase.PENALTY_SHOOT:
             return self._handle_fixed_positions(snapshot, robot_ids, self._penalty_shoot_pos)
@@ -566,7 +569,7 @@ class Coordinator:
                 continue
             bb = self.blackboards[robot_id]
 
-            if ROLE_ASSIGNMENT.get(robot_id) == RoleType.ATTACKER:
+            if robot_id == self.KICKOFF_KICKER_ID:
                 dist_to_ball = math.hypot(
                     robot.position[0] - ball[0],
                     robot.position[1] - ball[1],
@@ -675,13 +678,57 @@ class Coordinator:
                 if slot is None:
                     slot = len(self._free_kick_support_slots)
                     self._free_kick_support_slots[robot_id] = slot
-                support_pos = FREE_KICK_SUPPORT_POSITIONS[
-                    slot % len(FREE_KICK_SUPPORT_POSITIONS)
+                offset = FREE_KICK_SUPPORT_OFFSETS[
+                    slot % len(FREE_KICK_SUPPORT_OFFSETS)
                 ]
+                bx, by = snapshot.ball_position
+                support_pos = (bx + offset[0], by + offset[1])
                 bb.current_intent = IntentMove(
                     target_pos=support_pos, target_orientation=None
                 )
                 intents.append(bb.current_intent)
+        return intents
+
+    def _handle_opp_free_kick(self, snapshot: Snapshot, robot_ids: list[int]) -> list[Intent]:
+        """OPP_FREE_KICK: opponent has the free kick — all our robots stay ≥0.5m from ball.
+
+        Goalie tracks ball on own goal line (y only). Non-goalie robots move to
+        defensive spread positions offset from the ball, all at legal clearance distance.
+        """
+        bx, by = snapshot.ball_position
+        intents: list[Intent] = []
+
+        # Defensive positions relative to ball: form a wall/spread between ball and own goal.
+        # Own goal is in the -attack_sign direction from ball.
+        # Place robots in a line ~0.6m from ball on the own-goal side.
+        CLEARANCE = STOP_BALL_CLEARANCE  # 0.55m (above the 0.5m SSL rule)
+        wall_x = bx - CLEARANCE * self._attack_sign  # step toward own goal from ball
+
+        # Lateral spread slots for non-goalie robots
+        spread_y = [0.0, -0.6, 0.6, -1.2, 1.2]
+
+        slot_idx = 0
+        for robot_id in robot_ids:
+            robot = _find_robot(snapshot, robot_id)
+            if robot is None:
+                continue
+            bb = self.blackboards[robot_id]
+
+            if ROLE_ASSIGNMENT.get(robot_id) == RoleType.GOALIE:
+                # Goalie holds on own goal line, tracks ball y
+                target = (self._own_goal_line_x, max(-1.0, min(1.0, by)))
+            else:
+                sy = spread_y[slot_idx % len(spread_y)]
+                slot_idx += 1
+                target = (wall_x, by + sy)
+                # Ensure we're actually at clearance from ball
+                dist = math.hypot(target[0] - bx, target[1] - by)
+                if dist < CLEARANCE:
+                    scale = CLEARANCE / max(dist, 1e-6)
+                    target = (bx + (target[0] - bx) * scale, by + (target[1] - by) * scale)
+
+            bb.current_intent = IntentMove(target_pos=target, target_orientation=None, max_speed=1.4)
+            intents.append(bb.current_intent)
         return intents
 
     def _handle_penalty_defend(
@@ -743,7 +790,7 @@ class Coordinator:
     def _lock_kickoff_kicker(self, snapshot: Snapshot, robot_ids: list[int]) -> None:
         """Lock in the designated kickoff kicker (idempotent).
 
-        Robot 5 is always the kicker — it is pre-positioned inside the center
+        Robot 3 is always the kicker — it is pre-positioned inside the center
         circle during PREPARE_KICKOFF and is the only robot allowed there per §5.3.2.
         Falls back to closest non-goalie if robot 5 is absent from the snapshot.
         """

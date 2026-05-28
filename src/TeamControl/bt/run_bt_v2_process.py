@@ -60,7 +60,7 @@ def _build_coordinator(us_positive: bool) -> Coordinator:
         },
         us_positive=us_positive,
     )
-    print(f"[BT] coordinator built — us_positive={us_positive} opp_goal={c._opp_goal} attack_sign={c._attack_sign}", flush=True)
+    print(f"[BT-{'YELLOW' if not us_positive else 'BLUE'}] coordinator built — us_positive={us_positive} opp_goal={c._opp_goal} attack_sign={c._attack_sign}", flush=True)
     return c
 
 
@@ -69,6 +69,7 @@ def run_bt_v2_process(
     wm: WorldModel,
     dispatcher_q: Queue,
     robot_ids: list[int] | None = None,
+    config_file: str = "ipconfig.yaml",
 ) -> None:
     """Tick the v2 (TurtleRabbitBT) coordinator in a child process.
 
@@ -82,12 +83,13 @@ def run_bt_v2_process(
     if robot_ids is None:
         robot_ids = DEFAULT_ROBOT_IDS
 
-    _cfg = _YamlConfig()
+    _cfg = _YamlConfig(config_file)
     is_yellow = bool(_cfg.us_yellow)
     _us_positive = bool(_cfg.us_positive)
     coordinator = _build_coordinator(us_positive=_us_positive)
     print(f"[BT] started — yellow={is_yellow}, us_positive={_us_positive}, robot_ids={robot_ids}")
 
+    tag = "[BT-YELLOW]" if is_yellow else "[BT-BLUE]"
     last_phase = None
     tick_count = 0
 
@@ -102,7 +104,7 @@ def run_bt_v2_process(
 
             # Print whenever the game phase changes
             if phase != last_phase:
-                print(f"[BT] phase changed: {last_phase} → {phase}", flush=True)
+                print(f"{tag} phase changed: {last_phase} → {phase}", flush=True)
                 last_phase = phase
 
             coordinator.tick(snapshot, robot_ids)
@@ -111,7 +113,7 @@ def run_bt_v2_process(
             tick_count += 1
             if tick_count % 100 == 0:
                 bx, by = snapshot.ball_position
-                print(f"[BT] tick={tick_count} phase={phase.value} ball=({bx:.2f},{by:.2f})", flush=True)
+                print(f"{tag} tick={tick_count} phase={phase.value} ball=({bx:.2f},{by:.2f})", flush=True)
                 robot_map = {r.robot_id: r for r in snapshot.own_robots}
                 for rid in robot_ids:
                     bb = coordinator.blackboards.get(rid)

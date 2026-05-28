@@ -21,6 +21,7 @@ class GameState(Enum):
     OPP_KICKOFF = auto()
 
     FREE_KICK = auto()
+    OPP_FREE_KICK = auto()
     BALL_PLACEMENT = auto()
     KICKOFF = auto()
     

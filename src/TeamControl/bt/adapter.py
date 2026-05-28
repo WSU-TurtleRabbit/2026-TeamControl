@@ -60,6 +60,7 @@ _PHASE_MAP = {
     GameState.OPP_KICKOFF:    GamePhase.OPP_KICKOFF,
     GameState.KICKOFF:         GamePhase.KICKOFF,
     GameState.FREE_KICK:       GamePhase.FREE_KICK,
+    GameState.OPP_FREE_KICK:   GamePhase.OPP_FREE_KICK,
     GameState.BALL_PLACEMENT:  GamePhase.BALL_PLACEMENT,
     GameState.PENALTY_SHOOT:   GamePhase.PENALTY_SHOOT,
     GameState.PENALTY_DEFEND:  GamePhase.PENALTY_DEFEND,

@@ -34,6 +34,7 @@ class Config():
         self.us_yellow = raw["us_yellow"]
         self.us_positive = raw["us_positive"]
         self.send_to_grSim = raw["send_to_grSim"]
+        self.team_name = raw.get("team_name", "TurtleRabbit")
    
     
 

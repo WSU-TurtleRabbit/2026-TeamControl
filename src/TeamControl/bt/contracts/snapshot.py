@@ -22,6 +22,7 @@ class GamePhase(str, Enum):
     KICKOFF = "KICKOFF"                   # attacker kicks off from centre
     OPP_KICKOFF = "OPP_KICKOFF"          # opponent kickoff — all robots to own half
     FREE_KICK = "FREE_KICK"               # attacker takes free kick
+    OPP_FREE_KICK = "OPP_FREE_KICK"       # opponent free kick — keep 0.5m from ball
     BALL_PLACEMENT = "BALL_PLACEMENT"     # we place the ball
     PENALTY_SHOOT = "PENALTY_SHOOT"       # we shoot a penalty
     PENALTY_DEFEND = "PENALTY_DEFEND"     # we defend a penalty

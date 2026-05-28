@@ -10,6 +10,7 @@ from TeamControl.utils.yaml_config import Config
 
 
 def main():
+    import sys
     import multiprocessing
     multiprocessing.freeze_support()
     vision_port = 10006
@@ -19,7 +20,8 @@ def main():
     gc_q = Queue()
     dispatcher_q = Queue()
 
-    preset = Config()
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "ipconfig.yaml"
+    preset = Config(config_file)
 
     # Vision input
     vision_wkr = Process(
@@ -45,7 +47,7 @@ def main():
     # v2 BT coordinator — fills dispatcher_q with RobotCommands
     bt = Process(
         target=run_bt_v2_process,
-        args=(is_running, wm, dispatcher_q),
+        args=(is_running, wm, dispatcher_q, None, config_file),
     )
 
     # Dispatcher — reads dispatcher_q and sends commands to grSim
