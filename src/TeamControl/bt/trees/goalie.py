@@ -28,7 +28,7 @@ import math
 import py_trees
 
 from TeamControl.bt.contracts.blackboard import RobotBlackboard
-from TeamControl.bt.contracts.intent import IntentMove, IntentOrient
+from TeamControl.bt.contracts.intent import IntentKick, IntentMove
 from TeamControl.bt.contracts.snapshot import Snapshot
 
 # -----------------------------------------------------------------------
@@ -36,6 +36,11 @@ from TeamControl.bt.contracts.snapshot import Snapshot
 # -----------------------------------------------------------------------
 
 GOALIE_ROBOT_ID: int = 0   # robot ID 0 is always GOALIE
+
+# Distance from own goal at which goalie rushes out to intercept.
+RUSH_DIST: float = 1.5   # metres
+# Distance at which goalie is close enough to the ball to kick it clear.
+KICK_DIST: float = 0.2   # metres
 
 
 # -----------------------------------------------------------------------
@@ -67,7 +72,7 @@ class LookAtBall(py_trees.behaviour.Behaviour):
             snap.ball_position[1] - robot.position[1],
             snap.ball_position[0] - robot.position[0],
         )
-        bb.current_intent = IntentOrient(target_orientation=angle)
+        self._tree._facing_angle = angle
         return py_trees.common.Status.SUCCESS
 
 
@@ -94,18 +99,37 @@ class GetBallHistory(py_trees.behaviour.Behaviour):
 class DoBallTrajectory(py_trees.behaviour.Behaviour):
     """Compute predicted intercept point for the goalie.
 
-    v1 simplification: always returns NEUTRAL_GOAL_POSITION.
+    Tracks the ball's y-position on the goal line, clamped to the goal mouth.
     Stores the result in tree.predicted_intercept.
     SUCCESS → always.
     """
+
+    GOAL_HALF_WIDTH: float = 1.0  # clamp ball y to stay within goal mouth
 
     def __init__(self, tree_ref: GoalieTree) -> None:
         super().__init__("DoBallTrajectory")
         self._tree = tree_ref
 
     def update(self) -> py_trees.common.Status:
-        # v1: linear extrapolation not yet implemented — use neutral position.
-        self._tree.predicted_intercept = self._tree._neutral_goal_position
+        snap = self._tree._snapshot
+        if snap is None:
+            self._tree.predicted_intercept = self._tree._neutral_goal_position
+            self._tree._rushing = False
+            return py_trees.common.Status.SUCCESS
+
+        goal_x = self._tree._neutral_goal_position[0]
+        ball = snap.ball_position
+        dist_ball_to_goal = math.hypot(ball[0] - goal_x, ball[1])
+
+        if dist_ball_to_goal < RUSH_DIST:
+            # Ball is dangerously close — rush out and intercept
+            self._tree.predicted_intercept = ball
+            self._tree._rushing = True
+        else:
+            # Track ball y on goal line
+            clamped_y = max(-self.GOAL_HALF_WIDTH, min(self.GOAL_HALF_WIDTH, ball[1]))
+            self._tree.predicted_intercept = (goal_x, clamped_y)
+            self._tree._rushing = False
         return py_trees.common.Status.SUCCESS
 
 
@@ -142,12 +166,27 @@ class GoToTarget(py_trees.behaviour.Behaviour):
 
     def update(self) -> py_trees.common.Status:
         bb = self._tree._blackboard_ref[0]
+        snap = self._tree._snapshot
         if bb is None:
             return py_trees.common.Status.FAILURE
 
+        if self._tree._rushing and snap is not None:
+            robot = _find_robot(snap, bb.robot_id)
+            if robot is not None:
+                dist = math.hypot(
+                    robot.position[0] - snap.ball_position[0],
+                    robot.position[1] - snap.ball_position[1],
+                )
+                if dist < KICK_DIST:
+                    # Close enough — kick the ball away from own goal
+                    bb.current_intent = IntentKick(
+                        target_pos=self._tree._clear_target
+                    )
+                    return py_trees.common.Status.SUCCESS
+
         bb.current_intent = IntentMove(
             target_pos=self._tree.predicted_intercept,
-            target_orientation=None,
+            target_orientation=self._tree._facing_angle,
         )
         return py_trees.common.Status.SUCCESS
 
@@ -173,11 +212,14 @@ class GoalieTree:
         # being reconstructed each tick.
         self._blackboard_ref: list = [None]
         # v1 state: single-frame ball history and trajectory prediction
-        self.ball_history: tuple[float, float] | None = None
         # Own goal is at +x when us_positive=True, -x otherwise.
         neutral_x = 4.0 if us_positive else -4.0
         self._neutral_goal_position: tuple[float, float] = (neutral_x, 0.0)
         self.predicted_intercept: tuple[float, float] = self._neutral_goal_position
+        self.ball_history: tuple[float, float] | None = None
+        self._facing_angle: float = 0.0
+        self._rushing: bool = False
+        self._clear_target: tuple[float, float] = (-neutral_x, 0.0)
         # Build tree and expose IsBallComing node for testability
         self.is_ball_coming_node = IsBallComing(self)
         self.root = self._build_tree()
