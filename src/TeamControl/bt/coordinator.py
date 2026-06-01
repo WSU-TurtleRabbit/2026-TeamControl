@@ -31,7 +31,7 @@ from TeamControl.bt.contracts.snapshot import GamePhase, Snapshot
 # ---------------------------------------------------------------------------
 # Role assignment — fixed by robot ID
 # ---------------------------------------------------------------------------
-# index 0 → GOALIE, 1-2 → DEFENDER, 3-4 → SUPPORTER, 5 → ATTACKER
+# index 0 → GOALIE, 1-5 → ATTACKER
 ROLE_ASSIGNMENT: dict[int, RoleType] = {
     0: RoleType.GOALIE,
     1: RoleType.ATTACKER,
@@ -1047,8 +1047,11 @@ class Coordinator:
                 self._kickoff_kicker_id = robot_id
 
     def _ensure_blackboards(self, snapshot: Snapshot, robot_ids: list[int]) -> None:
-        """Create blackboards for any robot we haven't seen before."""
+        """Create blackboards only for robots present in both robot_ids and snapshot."""
+        snapshot_ids = {r.robot_id for r in snapshot.own_robots}
         for robot_id in robot_ids:
+            if robot_id not in snapshot_ids:
+                continue
             if robot_id not in self.blackboards:
                 role = ROLE_ASSIGNMENT.get(robot_id, RoleType.SUPPORTER)
                 self.blackboards[robot_id] = RobotBlackboard(

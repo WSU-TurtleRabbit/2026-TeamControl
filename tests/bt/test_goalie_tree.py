@@ -363,13 +363,17 @@ class TestGoToTarget:
         )
 
     def test_neutral_pos_consistent_across_ball_positions(self) -> None:
-        """GoToTarget always writes the same neutral pos regardless of ball location."""
-        for snap in (SNAPSHOT_BALL_CENTRE, SNAPSHOT_BALL_RIGHT, SNAPSHOT_BALL_LEFT):
+        """GoToTarget tracks ball y on goal line, clamped to [-1.0, 1.0]."""
+        expected = {
+            SNAPSHOT_BALL_CENTRE: (-4.0, 0.0),   # ball y=0.0
+            SNAPSHOT_BALL_RIGHT:  (-4.0, 1.0),   # ball y=1.0
+            SNAPSHOT_BALL_LEFT:   (-4.0, -1.0),  # ball y=-2.0, clamped to -1.0
+        }
+        for snap, exp_pos in expected.items():
             bb = _tick(snap, _make_goalie_blackboard())
             assert isinstance(bb.current_intent, IntentMove)
-            assert bb.current_intent.target_pos == NEUTRAL_GOAL_POSITION, (
-                f"Expected neutral pos {NEUTRAL_GOAL_POSITION}, "
-                f"got {bb.current_intent.target_pos} for snapshot {snap}"
+            assert bb.current_intent.target_pos == exp_pos, (
+                f"Expected {exp_pos}, got {bb.current_intent.target_pos} for snapshot {snap}"
             )
 
     def test_intent_move_not_intent_kick(self) -> None:
@@ -477,26 +481,31 @@ class TestDoBallTrajectory:
 
     def test_do_ball_trajectory_sets_predicted_intercept(self) -> None:
         tree = GoalieTree()
-        snap = SNAPSHOT_BALL_RIGHT
+        snap = SNAPSHOT_BALL_RIGHT  # ball at (2.0, 1.0)
         tree.set_snapshot(snap)
         bb = _make_goalie_blackboard()
         tree.tick(bb)
         assert hasattr(tree, "predicted_intercept"), (
             "GoalieTree must have attribute 'predicted_intercept' after tick"
         )
-        assert tree.predicted_intercept == NEUTRAL_GOAL_POSITION, (
-            f"predicted_intercept must be {NEUTRAL_GOAL_POSITION}, "
-            f"got {tree.predicted_intercept}"
+        # Tracks ball y=1.0 on goal line x=-4.0
+        assert tree.predicted_intercept == (-4.0, 1.0), (
+            f"predicted_intercept must be (-4.0, 1.0), got {tree.predicted_intercept}"
         )
 
     def test_predicted_intercept_is_neutral_regardless_of_ball_pos(self) -> None:
-        """v1 always returns neutral goal pos, ignoring actual ball trajectory."""
-        for snap in (SNAPSHOT_BALL_CENTRE, SNAPSHOT_BALL_RIGHT, SNAPSHOT_BALL_LEFT):
+        """Goalie tracks ball y on goal line, clamped to [-1.0, 1.0]."""
+        expected = {
+            SNAPSHOT_BALL_CENTRE: (-4.0, 0.0),
+            SNAPSHOT_BALL_RIGHT:  (-4.0, 1.0),
+            SNAPSHOT_BALL_LEFT:   (-4.0, -1.0),
+        }
+        for snap, exp_pos in expected.items():
             tree = GoalieTree()
             bb = _make_goalie_blackboard()
             tree.set_snapshot(snap)
             tree.tick(bb)
-            assert tree.predicted_intercept == NEUTRAL_GOAL_POSITION
+            assert tree.predicted_intercept == exp_pos
 
 
 # ---------------------------------------------------------------------------
@@ -589,11 +598,10 @@ class TestIsolation:
         tree_a.tick(bb_a)
         tree_b.tick(bb_b)
 
-        # Both should produce IntentMove to neutral position
+        # Both produce IntentMove; targets differ because they track different ball positions
         assert isinstance(bb_a.current_intent, IntentMove)
         assert isinstance(bb_b.current_intent, IntentMove)
-        assert bb_a.current_intent.target_pos == NEUTRAL_GOAL_POSITION
-        assert bb_b.current_intent.target_pos == NEUTRAL_GOAL_POSITION
+        assert bb_a.current_intent.target_pos != bb_b.current_intent.target_pos
 
     def test_tree_can_be_used_without_py_trees_runner(self) -> None:
         """GoalieTree.tick() must work without py_trees BehaviourTree/Runner."""
