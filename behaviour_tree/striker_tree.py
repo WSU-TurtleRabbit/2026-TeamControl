@@ -151,7 +151,11 @@ class CalculateStrikerAction(py_trees.behaviour.Behaviour):
                 aim = (ax, ay)
 
         try:
+<<<<<<< HEAD
             behind = RobotMovement.behind_ball_point(intercept, aim, BEHIND_MM)
+=======
+            behind = RobotMovement.shooting_pos(intercept, aim, BEHIND_MM)
+>>>>>>> origin/naomi
         except ValueError:
             behind = intercept
 

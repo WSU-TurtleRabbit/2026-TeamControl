@@ -175,7 +175,7 @@ class SimEngine(QObject):
                     daemon=True),
             Process(target=GCfsm.run_worker,
                     args=(self._is_running, None, self._gc_q,
-                          preset.us_yellow, preset.us_positive),
+                          preset.us_yellow, preset.us_positive, preset.team_name),
                     daemon=True),
             Process(target=WMWorker.run_worker,
                     args=(self._is_running, None, self._wm,

@@ -32,10 +32,10 @@ class RobotRecv(BaseWorker):
         self._queue = recv_queue
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(("192.168.1.2", RECV_PORT))
+        sock.bind(("", RECV_PORT))
         sock.settimeout(RECV_TIMEOUT)
         self._sock = sock
-        msg = f"[RobotRecv] listening on 192.168.1.2,:{RECV_PORT}"
+        msg = f"[RobotRecv] listening on 0.0.0.0:{RECV_PORT}"
         self.logger.info(msg)
         print(msg, flush=True)
         super().setup()

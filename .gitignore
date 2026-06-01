@@ -3,13 +3,21 @@
 *_samples.png
 .vscode
 <<<<<<< HEAD
+<<<<<<< HEAD
 .spacialdesk/
 
 =======
 .spacialdesk
+=======
+>>>>>>> origin/naomi
 .out
+.spacialdesk
+.spacialdesk/
 out/
+<<<<<<< HEAD
 >>>>>>> 2026-TeamControl-main/main
+=======
+>>>>>>> origin/naomi
 bin/
 lib/
 pyvenv.cfg

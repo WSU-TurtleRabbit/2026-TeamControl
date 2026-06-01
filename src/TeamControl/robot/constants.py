@@ -121,13 +121,12 @@ TURN_KP           = _t["turn_kp"]     # rad -> rad/s
 TURN_KD           = _t["turn_kd"]     # rad/s -> rad/s
 LINEAR_KP         = _t["linear_kp"]   # mm -> m/s
 LINEAR_KD         = _t["linear_kd"]   # mm/s -> m/s
-ANGLE_EPSILON     = _t["angle_epsilon"]  # deadband below which ω = 0
+ANGLE_EPSILON     = _t["angle_epsilon"]  # deadband below which w = 0
 
 # Threshold zones for go_to_target (mm)
 KICKER_ZONE        = 70       # below this, speed is 0
 DRIBBLE_ZONE       = 400      # below this, speed is capped to DRIBBLE_SPEED_FRAC
 DRIBBLE_SPEED_FRAC = 0.2      # fraction of max_speed inside dribble zone
-
 # ═════════════════════════════════════════════════════════════════
 #  THRESHOLDS
 # ═════════════════════════════════════════════════════════════════

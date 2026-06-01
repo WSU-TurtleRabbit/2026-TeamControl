@@ -86,6 +86,6 @@ network:
   vision_ip: 0.0.0.0
 use_grSim_vision: true
 us_yellow: true
-us_positive: true
+us_positive: false
 send_to_grSim: true
 team_name: TurtleRabbit

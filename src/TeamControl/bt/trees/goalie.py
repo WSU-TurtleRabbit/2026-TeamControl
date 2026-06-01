@@ -28,7 +28,7 @@ import math
 import py_trees
 
 from TeamControl.bt.contracts.blackboard import RobotBlackboard
-from TeamControl.bt.contracts.intent import IntentKick, IntentMove
+from TeamControl.bt.contracts.intent import IntentKick, IntentMove, IntentOrient
 from TeamControl.bt.contracts.snapshot import Snapshot
 
 # -----------------------------------------------------------------------
@@ -73,6 +73,7 @@ class LookAtBall(py_trees.behaviour.Behaviour):
             snap.ball_position[0] - robot.position[0],
         )
         self._tree._facing_angle = angle
+        bb.current_intent = IntentOrient(target_orientation=angle)
         return py_trees.common.Status.SUCCESS
 
 

@@ -123,7 +123,7 @@ class SSL_Multicast(Receiver):
             cfg = Config()
             return cfg.vision_ip
         except Exception:
-            return "192.168.1.2"
+            return "0.0.0.0"
 
     def _add_group(self):
         """Joins multicast group on the vision network interface."""

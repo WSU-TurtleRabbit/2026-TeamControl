@@ -23,19 +23,14 @@ def main():
     config_file = sys.argv[1] if len(sys.argv) > 1 else "ipconfig.yaml"
     preset = Config(config_file)
 
-    # Vision input
     vision_wkr = Process(
         target=VisionProcess.run_worker,
         args=(is_running, None, vision_q, True, vision_port),
     )
-
-    # Game controller FSM — reads referee messages and fills gc_q with game states
     gc_wkr = Process(
         target=GCfsm.run_worker,
         args=(is_running, None, gc_q, preset.us_yellow, preset.us_positive, preset.team_name),
     )
-
-    # World model
     wm_manager = WorldModelManager()
     wm_manager.start()
     wm = wm_manager.WorldModel()
@@ -43,15 +38,11 @@ def main():
         target=WMWorker.run_worker,
         args=(is_running, None, wm, vision_q, gc_q),
     )
-
-    # v2 BT coordinator — fills dispatcher_q with RobotCommands
     bt = Process(
         target=run_bt_v2_process,
         args=(is_running, wm, dispatcher_q),
         kwargs={"config_file": config_file},
     )
-
-    # Dispatcher — reads dispatcher_q and sends commands to grSim
     dispatcher = Process(
         target=Dispatcher.run_worker,
         args=(is_running, None, dispatcher_q, preset),

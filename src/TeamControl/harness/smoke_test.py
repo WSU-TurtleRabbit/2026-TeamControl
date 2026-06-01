@@ -5,6 +5,13 @@ from TeamControl.harness.constants import (
     STEPS, VX, VY, VW
 )
 
+<<<<<<< HEAD
+=======
+################################
+from TeamControl.robot.p_controller import compute_velocity
+################################
+
+>>>>>>> origin/naomi
 h = Harness(robot_id=ROBOT_ID, is_yellow=IS_YELLOW)
 path = h.start("smoke_test")
 print(f"Logging to: {path}")
@@ -19,12 +26,35 @@ if position0 is None:
     print("WARNING: no vision position yet. Robot might not be on the field, or vision port is wrong.")
 
 # Turn logging on, drive forward at 0.3 m/s for 2 seconds at 60 Hz
+<<<<<<< HEAD
 h.set_logging(True)
 print("Driving forward for 2s...")
 for _ in range(STEPS):
     h.send(vx= VX, vy=VY, w= VW)
     time.sleep(1/60)
 
+=======
+target = (0, 0)  # or any field point
+h.set_logging(True)
+
+while True:
+    pos = h.read_position()
+    if pos is None:
+        h.send(0, 0, 0)
+        continue
+
+    vx, vy, w = compute_velocity(pos, target)
+    print("x,y: ", vx, vy)
+    h.send(vx, vy, w)
+
+    time.sleep(1/60)
+
+# print("Driving forward for 2s...")
+# for _ in range(STEPS):
+#     h.send(vx= VX, vy=VY, w= VW)
+#     time.sleep(1/60)
+
+>>>>>>> origin/naomi
 # Stop the robot — send zero velocity for half a second
 h.set_logging(False)
 print("Braking...")

@@ -70,6 +70,8 @@ def run_bt_v2_process(
     dispatcher_q: Queue,
     is_yellow: bool | None = None,
     robot_ids: list[int] | None = None,
+    role_assignment: dict | None = None,
+    tick_period: float = TICK_PERIOD,
     config_file: str = "ipconfig.yaml",
 ) -> None:
     """Tick the v2 (TurtleRabbitBT) coordinator in a child process.
@@ -80,19 +82,21 @@ def run_bt_v2_process(
         dispatcher_q: queue consumed by the dispatcher; items are
             ``[RobotCommand, run_time_seconds]``.
         is_yellow: team perspective for this BT instance. ``None`` falls
-            back to ``wm.us_yellow()`` (single-team mode). For 6v6 spawn
-            two processes and pass ``True`` and ``False`` explicitly.
+            back to config. For 6v6 pass ``True``/``False`` explicitly.
         robot_ids: which robot ids to tick. Defaults to 0..5.
-        role_assignment: per-robot role override; defaults to the
-            module-level ``ROLE_ASSIGNMENT`` in ``coordinator.py``.
+        role_assignment: per-robot RoleType override dict. Defaults to
+            the module-level ROLE_ASSIGNMENT in coordinator.py.
         tick_period: seconds to sleep between ticks.
+        config_file: path to yaml config (relative to utils/).
     """
     if robot_ids is None:
         robot_ids = DEFAULT_ROBOT_IDS
 
     _cfg = _YamlConfig(config_file)
-    is_yellow = bool(_cfg.us_yellow)
-    _us_positive = bool(_cfg.us_positive)
+    if is_yellow is None:
+        is_yellow = bool(_cfg.us_yellow)
+    # Blue team is always on the opposite side from yellow.
+    _us_positive = not is_yellow if is_yellow is not None else bool(_cfg.us_positive)
     coordinator = _build_coordinator(us_positive=_us_positive)
     print(f"[BT] started — yellow={is_yellow}, us_positive={_us_positive}, robot_ids={robot_ids}")
 
@@ -102,9 +106,9 @@ def run_bt_v2_process(
 
     try:
         while is_running.is_set():
-            snapshot = build_snapshot_from_world_model(wm)
+            snapshot = build_snapshot_from_world_model(wm, is_yellow=is_yellow)
             if snapshot is None:
-                time.sleep(TICK_PERIOD)
+                time.sleep(tick_period)
                 continue
 
             phase = snapshot.referee_state.game_phase
@@ -140,6 +144,6 @@ def run_bt_v2_process(
                     is_yellow,
                     dispatcher_q,
                 )
-            time.sleep(TICK_PERIOD)
+            time.sleep(tick_period)
     except KeyboardInterrupt:
         print("[BT] KeyboardInterrupt — exiting", flush=True)

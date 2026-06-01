@@ -49,10 +49,6 @@ from TeamControl.bt.skills.move_to import move_to
 from TeamControl.network.robot_command import RobotCommand
 from TeamControl.SSL.game_controller.common import GameState
 
-# Runtime world state comes in as raw SSL/grSim millimetres.
-_MM_TO_M = 0.001
-
-
 # Map every GC-produced GameState into the BT's GamePhase.
 # The GC FSM already resolves ours-vs-theirs before storing GameState,
 # so no extra colour check is needed here.
@@ -80,10 +76,6 @@ def _phase_from_state(state) -> GamePhase:
     return _PHASE_MAP.get(state, GamePhase.RUNNING)
 
 
-def _mm_to_m(value: float) -> float:
-    return float(value) * _MM_TO_M
-
-
 def _ball_pos_vel(frame) -> tuple[tuple[float, float], tuple[float, float]]:
     """Return (ball_position, ball_velocity) tuples from the latest frame.
 
@@ -94,7 +86,7 @@ def _ball_pos_vel(frame) -> tuple[tuple[float, float], tuple[float, float]]:
     if ball is None:
         return (0.0, 0.0), (0.0, 0.0)
     # Vision protocol sends positions in mm; BT uses metres.
-    return (_mm_to_m(ball.x), _mm_to_m(ball.y)), (0.0, 0.0)
+    return (float(ball.x) / 1000.0, float(ball.y) / 1000.0), (0.0, 0.0)
 
 
 def _team_to_states(team) -> tuple[RobotState, ...]:
@@ -104,19 +96,15 @@ def _team_to_states(team) -> tuple[RobotState, ...]:
             RobotState(
                 robot_id=int(robot.id),
                 # Vision protocol sends positions in mm; BT uses metres.
-                position=(_mm_to_m(robot.x), _mm_to_m(robot.y)),
+                position=(float(robot.x) / 1000.0, float(robot.y) / 1000.0),
                 orientation=float(robot.o),
             )
         )
     return tuple(out)
 
 
-def build_snapshot_from_world_model(wm, is_yellow: bool | None = None) -> Snapshot | None:
+def build_snapshot_from_world_model(wm) -> Snapshot | None:
     """Build a frozen ``Snapshot`` from the latest data in ``WorldModel``.
-
-    ``is_yellow`` selects whose perspective the snapshot is built from. Pass
-    it explicitly when more than one BT process shares the same WorldModel
-    (e.g. 6v6 simulation). When omitted, falls back to ``wm.us_yellow()``.
 
     Returns ``None`` when no vision frame has been received yet — callers
     should skip the tick in that case.
@@ -127,10 +115,9 @@ def build_snapshot_from_world_model(wm, is_yellow: bool | None = None) -> Snapsh
 
     ball_pos, ball_vel = _ball_pos_vel(frame)
 
-    if is_yellow is None:
-        is_yellow = bool(wm.us_yellow())
-    own_team = frame.robots_yellow if is_yellow else frame.robots_blue
-    opp_team = frame.robots_blue if is_yellow else frame.robots_yellow
+    us_yellow = wm.us_yellow()
+    own_team = frame.robots_yellow if us_yellow else frame.robots_blue
+    opp_team = frame.robots_blue if us_yellow else frame.robots_yellow
 
     raw_placement = wm.get_ball_placement_pos()
     placement_pos = (float(raw_placement[0]), float(raw_placement[1])) if raw_placement else None
@@ -175,22 +162,8 @@ def intent_to_motion_target(
         if isinstance(intent, IntentKick):
             return kick_at(snapshot, robot_id, intent.target_pos)
         if isinstance(intent, IntentDribble):
-            # No dribble skill yet — drive toward the target like move_to,
-            # but compute target_orientation so the robot faces the dribble
-            # target. Without this, move_to defaults orientation to 0.0 and
-            # the robot rotates east while trying to dribble west, leaving
-            # the ball behind.
-            robot = next(
-                (r for r in snapshot.own_robots if r.robot_id == robot_id), None
-            )
-            if robot is not None:
-                angle = math.atan2(
-                    intent.target_pos[1] - robot.position[1],
-                    intent.target_pos[0] - robot.position[0],
-                )
-            else:
-                angle = None
-            return move_to(snapshot, robot_id, intent.target_pos, angle)
+            # No dribble skill yet — drive toward the target like move_to.
+            return move_to(snapshot, robot_id, intent.target_pos, None)
         if isinstance(intent, IntentPass):
             return kick_at(snapshot, robot_id, intent.target_pos)
         if isinstance(intent, IntentOrient):
@@ -230,32 +203,28 @@ def intent_to_robot_command(
     if target is None:
         return None
 
-    # Pull the current orientation so we can compute an angular velocity AND
-    # rotate the velocity from world frame into the robot's body frame.
+    # Pull the current orientation so we can compute an angular velocity.
     robot = next(
         (r for r in snapshot.own_robots if r.robot_id == robot_id), None
     )
     current_o = robot.orientation if robot is not None else 0.0
     w = _angular_velocity_to_target(current_o, target.target_orientation)
 
-    # Skills produce target_velocity in WORLD frame. grSim's RobotCommand
-    # expects body-frame velocities (veltangent = forward, velnormal = left).
-    # Without this rotation the robot drives correctly only when its heading
-    # happens to be ~0 — for any other heading the motion direction is
-    # rotated by -orientation, producing curved / circular paths.
-    vx_world, vy_world = target.target_velocity
+    # Rotate world-frame velocity into robot-local frame.
+    # grSim expects veltangent/velnormal in the robot's own coordinate frame.
+    vx_w, vy_w = target.target_velocity
     cos_o = math.cos(current_o)
     sin_o = math.sin(current_o)
-    vt = vx_world * cos_o + vy_world * sin_o    # forward along heading
-    vn = -vx_world * sin_o + vy_world * cos_o   # left perpendicular
+    vx = vx_w * cos_o + vy_w * sin_o
+    vy = -vx_w * sin_o + vy_w * cos_o
 
     kick = 1 if isinstance(intent, (IntentKick, IntentPass)) else 0
     dribble = 1 if isinstance(intent, IntentDribble) else 0
 
     return RobotCommand(
         robot_id=robot_id,
-        vx=float(vt),
-        vy=float(vn),
+        vx=float(vx),
+        vy=float(vy),
         w=float(w),
         kick=kick,
         dribble=dribble,

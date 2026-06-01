@@ -14,7 +14,11 @@ from PySide6.QtWidgets import (
     QTabWidget, QStatusBar, QWidget, QHBoxLayout, QSizePolicy,
     QApplication, QSpinBox,
 )
+<<<<<<< HEAD
 from PySide6.QtCore import Qt, QTimer, QPointF
+=======
+from PySide6.QtCore import Qt, QTimer
+>>>>>>> origin/naomi
 from PySide6.QtGui import QAction, QFont, QIcon
 
 from TeamControl.ui.theme import QSS, ACCENT, TEXT, TEXT_DIM, SUCCESS, DANGER, WARNING
@@ -163,6 +167,7 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         tb.addWidget(spacer)
 
+<<<<<<< HEAD
         # View controls
         zoom_in = QPushButton("+")
         zoom_in.setFixedSize(28, 28)
@@ -191,6 +196,8 @@ class MainWindow(QMainWindow):
         self._field._offset = QPointF(0, 0)
         self._field.update()
 
+=======
+>>>>>>> origin/naomi
     # ── Menu ─────────────────────────────────────────────────────
 
     def _build_menu(self):
@@ -202,7 +209,11 @@ class MainWindow(QMainWindow):
         file_menu.addAction("Exit", self.close)
 
         view_menu = mb.addMenu("View")
+<<<<<<< HEAD
         view_menu.addAction("Reset Field View", self._reset_field_view)
+=======
+        view_menu.addAction("Reset Field View", self._field._zoom_fit)
+>>>>>>> origin/naomi
         view_menu.addSeparator()
         for i, name in enumerate(["Dashboard", "Settings", "Console",
                                    "Hardware Test", "Dispatcher",

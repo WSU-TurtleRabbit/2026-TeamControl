@@ -15,10 +15,12 @@ Type "exit" (or Ctrl+C) to stop.
 """
 from __future__ import annotations
 
+import multiprocessing
 from multiprocessing import Event, Process, Queue
 
 from TeamControl.bt.run_bt_v2_process import run_bt_v2_process
 from TeamControl.dispatcher.dispatch import Dispatcher
+from TeamControl.process_workers.gcfsm_runner import GCfsm
 from TeamControl.process_workers.vision_runner import VisionProcess
 from TeamControl.process_workers.wm_runner import WMWorker
 from TeamControl.utils.sim_config import Sim6v6Config
@@ -47,6 +49,9 @@ def main() -> None:
         Process(target=VisionProcess.run_worker,
                 args=(is_running, logger, vision_q,
                       preset.use_grSim_vision, preset.vision[1])),
+        Process(target=GCfsm.run_worker,
+                args=(is_running, logger, gc_q,
+                      preset.us_yellow, preset.us_positive, preset.team_name)),
         Process(target=WMWorker.run_worker,
                 args=(is_running, logger, wm, vision_q, gc_q,
                       recv_q, {})),
@@ -91,4 +96,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()

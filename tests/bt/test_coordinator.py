@@ -70,7 +70,7 @@ class TestCoordinatorImport:
 
     def test_coordinator_does_not_import_robot_command(self):
         import inspect
-        from src.bt import coordinator as coord_mod
+        from TeamControl.bt import coordinator as coord_mod
         source = inspect.getsource(coord_mod)
         assert "RobotCommand" not in source, (
             "Coordinator must not reference RobotCommand anywhere"
@@ -83,10 +83,10 @@ class TestCoordinatorImport:
 
 EXPECTED_ROLE_ASSIGNMENT = {
     0: RoleType.GOALIE,
-    1: RoleType.DEFENDER,
-    2: RoleType.DEFENDER,
-    3: RoleType.SUPPORTER,
-    4: RoleType.SUPPORTER,
+    1: RoleType.ATTACKER,
+    2: RoleType.ATTACKER,
+    3: RoleType.ATTACKER,
+    4: RoleType.ATTACKER,
     5: RoleType.ATTACKER,
 }
 
@@ -109,25 +109,25 @@ class TestRoleAssignment:
         coord.tick(_make_snapshot([0]), [0])
         assert coord.blackboards[0].current_role == RoleType.GOALIE
 
-    def test_index_1_gets_defender(self):
+    def test_index_1_gets_attacker(self):
         coord = self._make_coordinator()
         coord.tick(_make_snapshot([1]), [1])
-        assert coord.blackboards[1].current_role == RoleType.DEFENDER
+        assert coord.blackboards[1].current_role == RoleType.ATTACKER
 
-    def test_index_2_gets_defender(self):
+    def test_index_2_gets_attacker(self):
         coord = self._make_coordinator()
         coord.tick(_make_snapshot([2]), [2])
-        assert coord.blackboards[2].current_role == RoleType.DEFENDER
+        assert coord.blackboards[2].current_role == RoleType.ATTACKER
 
-    def test_index_3_gets_supporter(self):
+    def test_index_3_gets_attacker(self):
         coord = self._make_coordinator()
         coord.tick(_make_snapshot([3]), [3])
-        assert coord.blackboards[3].current_role == RoleType.SUPPORTER
+        assert coord.blackboards[3].current_role == RoleType.ATTACKER
 
-    def test_index_4_gets_supporter(self):
+    def test_index_4_gets_attacker(self):
         coord = self._make_coordinator()
         coord.tick(_make_snapshot([4]), [4])
-        assert coord.blackboards[4].current_role == RoleType.SUPPORTER
+        assert coord.blackboards[4].current_role == RoleType.ATTACKER
 
     def test_index_5_gets_attacker(self):
         coord = self._make_coordinator()
@@ -183,9 +183,9 @@ class TestCorrectTreeDispatched:
         robot_ids = list(range(6))
         coord.tick(_make_snapshot(robot_ids), robot_ids)
         assert tick_counts[RoleType.GOALIE] == 1
-        assert tick_counts[RoleType.ATTACKER] == 1
-        assert tick_counts[RoleType.DEFENDER] == 2   # robots 1 and 2
-        assert tick_counts[RoleType.SUPPORTER] == 2  # robots 3 and 4
+        assert tick_counts[RoleType.ATTACKER] == 5   # robots 1-5
+        assert tick_counts[RoleType.DEFENDER] == 0
+        assert tick_counts[RoleType.SUPPORTER] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -368,7 +368,7 @@ class TestBlackboardInjection:
     def test_each_robot_gets_own_blackboard(self):
         from TeamControl.bt.coordinator import Coordinator
 
-        seen_bbs: dict[str, list] = {"goalie": [], "defender": []}
+        seen_bbs: dict[str, list] = {"goalie": [], "attacker": []}
 
         class CapturingBehaviour(py_trees.behaviour.Behaviour):
             def __init__(self, name: str, bucket: list) -> None:
@@ -384,9 +384,9 @@ class TestBlackboardInjection:
 
         trees = {
             RoleType.GOALIE: CapturingBehaviour("goalie", seen_bbs["goalie"]),
-            RoleType.DEFENDER: CapturingBehaviour("defender", seen_bbs["defender"]),
+            RoleType.DEFENDER: FixedIntentBehaviour("def", IntentOrient(1.0)),
             RoleType.SUPPORTER: FixedIntentBehaviour("sup", IntentOrient(0.0)),
-            RoleType.ATTACKER: FixedIntentBehaviour("att", IntentOrient(0.0)),
+            RoleType.ATTACKER: CapturingBehaviour("attacker", seen_bbs["attacker"]),
         }
         coord = Coordinator(trees=trees)
         coord.tick(_make_snapshot([0, 1, 2]), [0, 1, 2])
@@ -394,6 +394,6 @@ class TestBlackboardInjection:
         assert len(seen_bbs["goalie"]) == 1
         assert seen_bbs["goalie"][0].robot_id == 0
 
-        assert len(seen_bbs["defender"]) >= 1
-        defender_ids = {bb.robot_id for bb in seen_bbs["defender"]}
-        assert 1 in defender_ids
+        assert len(seen_bbs["attacker"]) >= 1
+        attacker_ids = {bb.robot_id for bb in seen_bbs["attacker"]}
+        assert 1 in attacker_ids

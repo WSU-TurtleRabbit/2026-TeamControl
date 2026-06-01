@@ -26,7 +26,11 @@ from PySide6.QtGui import QColor, QFont
 
 from TeamControl.ui.theme import (
     ACCENT, TEXT_DIM, SUCCESS, WARNING, DANGER,
+<<<<<<< HEAD
     YELLOW_TEAM, BLUE_TEAM, BALL_COLOR, BORDER, BG_CARD,
+=======
+    YELLOW_TEAM, BLUE_TEAM, BALL_COLOR, BORDER, BG_CARD, BG_DARK,
+>>>>>>> origin/naomi
 )
 
 _CAL_PATH = os.path.normpath(os.path.join(
@@ -82,21 +86,60 @@ class DashboardPage(QWidget):
 
         splitter = QSplitter(Qt.Horizontal)
 
+<<<<<<< HEAD
         # ── Left: Field canvas (stretches) ────────────────────────
         splitter.addWidget(self._field)
+=======
+        # ── Left: Field canvas + options bar ─────────────────────
+        left_container = QWidget()
+        left_lay = QVBoxLayout(left_container)
+        left_lay.setContentsMargins(0, 0, 0, 0)
+        left_lay.setSpacing(0)
+        left_lay.addWidget(self._field)
+
+        options_bar = QHBoxLayout()
+        options_bar.setContentsMargins(8, 3, 8, 3)
+        self._vel_btn = QPushButton("Velocity Vectors")
+        self._vel_btn.setCheckable(True)
+        self._vel_btn.setChecked(False)
+        self._vel_btn.setFixedHeight(22)
+        self._vel_btn.setStyleSheet(
+            f"QPushButton {{ background:{BG_CARD}; color:{TEXT_DIM}; "
+            f"border:1px solid {BORDER}; border-radius:3px; "
+            f"padding:0 8px; font-size:11px; }}"
+            f"QPushButton:checked {{ background:{ACCENT}; color:white; "
+            f"border-color:{ACCENT}; }}"
+        )
+        self._vel_btn.toggled.connect(self._field.set_show_velocity)
+        options_bar.addWidget(self._vel_btn)
+        options_bar.addStretch()
+        left_lay.addLayout(options_bar)
+
+        splitter.addWidget(left_container)
+>>>>>>> origin/naomi
 
         # ── Right: scrollable sidebar ─────────────────────────────
         sidebar = QWidget()
         sidebar.setMinimumWidth(320)
         sidebar.setMaximumWidth(480)
+<<<<<<< HEAD
+=======
+        sidebar.setStyleSheet(f"background: {BG_DARK};")
+>>>>>>> origin/naomi
         sb_outer = QVBoxLayout(sidebar)
         sb_outer.setContentsMargins(0, 0, 0, 0)
         sb_outer.setSpacing(0)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+<<<<<<< HEAD
         scroll.setStyleSheet("QScrollArea { border: none; }")
         scroll_inner = QWidget()
+=======
+        scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {BG_DARK}; }}")
+        scroll_inner = QWidget()
+        scroll_inner.setStyleSheet(f"background: {BG_DARK};")
+>>>>>>> origin/naomi
         sb_lay = QVBoxLayout(scroll_inner)
         sb_lay.setContentsMargins(8, 8, 8, 8)
         sb_lay.setSpacing(8)
