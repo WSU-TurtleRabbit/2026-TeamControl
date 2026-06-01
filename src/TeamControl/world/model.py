@@ -49,6 +49,7 @@ class WorldModel:
         self._state = None # current state from GC
         self.robot_active = 6 # robots active
         self.blf_location = None # ball left field location
+        self.ball_placement_pos: tuple | None = None  # designated position for ball placement
         self._onboard_store = {}  # (is_yellow, robot_id) -> OnboardObservation
     
     def update_game_data(self,game_data):
@@ -66,8 +67,8 @@ class WorldModel:
                 self.ref_data.blue = game_data[1]
 
     def update_team(self, us_yellow: bool, us_positive: bool):
-        self.us_yellow = us_yellow
-        self.us_positive = us_positive
+        self._us_yellow = us_yellow
+        self._us_positive = us_positive
         self.robot_active = 6 # robots active
         self.blf_location = None
 
@@ -94,8 +95,10 @@ class WorldModel:
                 self.update_team(data["YELLOW"], data["POSITIVE"])
             case PacketType.BLF_LOCATION:
                 self.update_ball_left_field_location(data)
-            
-            case _: # if the packet type is unknown 
+            case PacketType.BALL_PLACEMENT_POS:
+                self.ball_placement_pos = data
+
+            case _: # if the packet type is unknown
                 log.exception(f"undefined Packet - {t}, {data=}")
             
     def update_robots_active(self,new_active) : 
@@ -111,6 +114,9 @@ class WorldModel:
 
     def update_ball_left_field_location(self, location):
         self.blf_location = location
+
+    def get_ball_placement_pos(self) -> tuple | None:
+        return self.ball_placement_pos
 
     def get_ball_left_field_location(self):
         return self.blf_location

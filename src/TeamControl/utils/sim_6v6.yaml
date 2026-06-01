@@ -1,0 +1,26 @@
+# 6v6 BT-vs-BT simulation config — consumed by main_bt_6v6.py.
+#
+# This file ONLY holds settings specific to the 6v6 sim. Network settings
+# (grSim address, vision multicast/port, send_to_grSim, robot IPs) still
+# come from ipconfig.yaml — both BT instances share that file.
+
+# Robot shell IDs each side controls. Both sides drive their own 0..5
+# because grSim spawns id 0..5 per colour by default.
+yellow:
+  robot_ids: [0, 1, 2, 3, 4, 5]
+blue:
+  robot_ids: [0, 1, 2, 3, 4, 5]
+
+# Per-robot role assignment, applied to BOTH teams.
+# Valid roles: goalie, defender, supporter, attacker.
+# (If yellow and blue should ever differ, split into yellow_roles / blue_roles.)
+roles:
+  0: goalie
+  1: defender
+  2: defender
+  3: supporter
+  4: supporter
+  5: attacker
+
+# Tick period in seconds for each BT process (100 Hz = 0.01).
+tick_period: 0.01

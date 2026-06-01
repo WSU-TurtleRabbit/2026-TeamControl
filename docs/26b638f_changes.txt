@@ -1,0 +1,220 @@
+Commit 26b638f — "BT test with 6v6 (this is broken)"
+====================================================
+Author: liamvercueil <liamvercueilrx@gmail.com>
+Date:   Sun May 24 15:07:56 2026 +1000
+
+Purpose
+-------
+First attempt at running two v2 BT processes against the same grSim — one
+controlling yellow, one controlling blue — so the BT could play against
+itself ("BT vs BT" / 6v6). The commit message tags it as broken; from the
+code it's plausibly a wiring or units issue rather than a logic flaw.
+
+After the merge of origin/main into local main on 2026-06-01, most of the
+behavioural changes in this commit were OVERRIDDEN by origin/main's
+versions of the conflicting files. The supporting files (the 6v6 entry
+point, the yaml config, the loader) are still present in the tree but
+the entry point will no longer work without further changes — see "What
+broke after the merge" at the bottom of this file.
+
+Files changed
+-------------
+NEW FILES (10):
+  codex-context.md                          codex session notes (35 lines)
+  context.md                                session notes (4 lines)
+  docs/bt_v2_6v6_sim.md                     6v6 setup documentation (100 lines)
+  main_bt_6v6.py                            6v6 launcher script (94 lines)
+  src/TeamControl/utils/sim_6v6.yaml        scenario config (26 lines)
+  src/TeamControl/utils/sim_config.py       Sim6v6Config loader (61 lines)
+  tests/bt/test_adapter_units.py            adapter unit-conversion tests (48 lines)
+
+MODIFIED FILES (3):
+  src/TeamControl/bt/adapter.py             +19 / -6
+  src/TeamControl/bt/coordinator.py         +7  / -1
+  src/TeamControl/bt/run_bt_v2_process.py   +20 / -8
+
+What it actually did
+--------------------
+
+1. Two BT processes from one shared WorldModel
+   --------------------------------------------
+   The 2026 codebase previously assumed a single BT process owning the
+   world model and inferring its team colour from wm.us_yellow(). This
+   commit lets two BTs (one per colour) share the same wm, by:
+
+   adapter.build_snapshot_from_world_model(wm, is_yellow=None) -> Snapshot
+       - New optional `is_yellow` parameter selects which side is "us" for
+         this particular snapshot. When None, falls back to wm.us_yellow()
+         (preserves single-team behaviour).
+       - When you spawn one BT per colour, pass True for the yellow process
+         and False for the blue process. Each ends up with its own per-tick
+         Snapshot whose own_robots / opponent_robots are oriented to that
+         colour's perspective.
+
+2. mm -> m at the snapshot boundary
+   --------------------------------
+   SSL Vision and grSim send positions in millimetres. The pre-26b638f
+   adapter passed raw mm into the Snapshot but the BT skill constants
+   (BALL_IN_RANGE_THRESHOLD, POSSESSION_DIST, etc.) were authored in
+   metres. The mismatch made distance checks effectively "in range ≈
+   touching", which made the BT look broken.
+
+   Fix introduced here:
+       _MM_TO_M = 0.001
+       _mm_to_m(value) -> value * _MM_TO_M
+   and applied to:
+       _ball_pos_vel:   ball.x, ball.y                -> metres
+       _team_to_states: robot.x, robot.y              -> metres
+
+   The test added at tests/bt/test_adapter_units.py asserts that an input
+   of 4500 mm comes out as 4.5 m on both axes.
+
+3. Per-instance role assignment on the Coordinator
+   ------------------------------------------------
+   Coordinator was looking up roles from the module-level dict
+   ROLE_ASSIGNMENT every tick. With two BT processes that's fine if both
+   sides use the same role mapping, but it leaks global state and makes
+   it impossible to give the two teams different formations.
+
+   Change:
+       Coordinator.__init__(trees, role_assignment=None)
+       self.role_assignment = dict(role_assignment) if role_assignment
+                              else dict(ROLE_ASSIGNMENT)
+       _normal_tick uses self.role_assignment.get(...) instead of the
+                              module-level ROLE_ASSIGNMENT.
+
+   Default behaviour is unchanged for single-team callers.
+
+4. run_bt_v2_process gains four new arguments
+   -------------------------------------------
+   run_bt_v2_process(
+       is_running, wm, dispatcher_q,
+       is_yellow: bool | None = None,         # NEW
+       robot_ids: list[int] | None = None,
+       role_assignment: dict[int, RoleType] | None = None,  # NEW
+       tick_period: float = TICK_PERIOD,                    # NEW
+   )
+
+   Inside:
+       - coordinator = _build_coordinator(role_assignment)
+       - is_yellow is resolved from arg if provided, else wm.us_yellow()
+       - build_snapshot_from_world_model(wm, is_yellow=is_yellow)
+       - time.sleep(tick_period) instead of constant TICK_PERIOD
+
+   This is what lets two BT processes co-exist behind one wm.
+
+5. 6v6 launcher script (main_bt_6v6.py)
+   -------------------------------------
+   Repo-root script that wires together:
+       Vision  -> vision_q -> WMWorker -> wm (shared, via WorldModelManager)
+                                        |
+                       +----------------+----------------+
+                       |                                 |
+            run_bt_v2_process              run_bt_v2_process
+              (is_yellow=True)                (is_yellow=False)
+                       |                                 |
+                       +----------- dispatch_q ----------+
+                                          |
+                                   Dispatcher  -> grSim
+
+   No GCfsm is started, so both BTs see GamePhase.RUNNING permanently.
+   Adding it later is straightforward: spawn GCfsm.run_worker and let
+   WMWorker populate wm._state.
+
+   The two BTs share dispatch_q but each emits RobotCommand.isYellow
+   correctly because intent_to_robot_command takes is_yellow from its
+   per-process arg, not from the world model.
+
+6. sim_6v6.yaml + Sim6v6Config loader
+   -----------------------------------
+   Held the 6v6-specific knobs OUT of ipconfig.yaml so the two concerns
+   stayed clean:
+
+       yellow:
+         robot_ids: [0, 1, 2, 3, 4, 5]
+       blue:
+         robot_ids: [0, 1, 2, 3, 4, 5]
+       roles:
+         0: goalie
+         1: defender
+         2: defender
+         3: supporter
+         4: supporter
+         5: attacker
+       tick_period: 0.01
+
+   Sim6v6Config parses this. _parse_roles maps strings to RoleType
+   enums and raises ValueError on unknown role names. Both teams share
+   the same role map; the doc notes "split into yellow_roles /
+   blue_roles" if they ever need to diverge.
+
+7. Documentation: docs/bt_v2_6v6_sim.md
+   -------------------------------------
+   100-line walkthrough covering: file inventory, run command, the
+   process-tree diagram, how to customise the scenario, and four
+   follow-up notes — most importantly:
+       - No shared blackboard between teams (each owns its own
+         Coordinator + per-robot blackboards). They share only the
+         read-only WorldModel and the write-only dispatch_q.
+       - Both teams emit isYellow correctly via the new arg path.
+       - GC not wired in; phase is RUNNING permanently.
+       - Unit caveat: the mm->m fix in adapter.py exists to resolve
+         this; the doc captures the historical context.
+
+What broke after the merge of origin/main on 2026-06-01
+-------------------------------------------------------
+The three modified files (adapter.py, coordinator.py, run_bt_v2_process.py)
+all conflicted with origin/main and were resolved by taking origin/main's
+side wholesale. The following 26b638f features are therefore CURRENTLY
+GONE from the merged source:
+
+  - Coordinator(role_assignment=...) parameter
+      origin/main's signature is Coordinator(trees, us_positive=True).
+      The per-instance role_assignment dict no longer exists.
+
+  - run_bt_v2_process(is_yellow=..., role_assignment=..., tick_period=...)
+      origin/main's signature is run_bt_v2_process(is_running, wm,
+      dispatcher_q, robot_ids=None, config_file="ipconfig.yaml").
+      The 6v6 keyword args (is_yellow / role_assignment / tick_period)
+      no longer exist.
+
+  - build_snapshot_from_world_model(wm, is_yellow=...) keyword
+      The function in the merged adapter still takes only `wm` (the
+      mm->m conversion survived, but the explicit is_yellow override
+      did not).
+
+Consequence: main_bt_6v6.py will FAIL with TypeError on launch — it
+passes role_assignment, tick_period, and is_yellow as kwargs that no
+longer exist. The supporting files (sim_6v6.yaml, sim_config.py, the
+doc) are still present and uncomitted but unusable until either:
+
+  (a) main_bt_6v6.py is rewritten on top of origin/main's signatures
+      (origin/main's run_bt_v2_process reads team identity from a yaml
+      config file, which is different from passing it as a kwarg — the
+      6v6 wiring would need two separate config files plus a way to
+      tell each BT process which to load); or
+  (b) the three features above are reintroduced on top of the merged
+      Coordinator / run_bt_v2_process (smaller surface change, but
+      requires merging with the new state-machine fields the
+      origin/main side added).
+
+Recommendation
+--------------
+If 6v6 BT-vs-BT play is important, reintroduce features above as a
+follow-up commit on top of the merged main. The smallest viable port is:
+
+  1. Add `is_yellow: bool | None = None` back to
+     build_snapshot_from_world_model and run_bt_v2_process. Keep the
+     None-fallback to wm.us_yellow() so single-team callers are
+     unaffected.
+  2. Skip per-team role_assignment for now — origin/main's set-piece
+     state-machine assumes the module-level ROLE_ASSIGNMENT, so adding
+     a per-instance override needs careful threading through several
+     more methods. The 6v6 yaml's `roles` field would just be ignored
+     until then.
+  3. Update main_bt_6v6.py to pass only the surviving kwargs
+     (is_yellow, robot_ids).
+
+That gets the 6v6 entry point functional again with the same network
+plumbing as the merged main; the role-customisation per process can
+follow once the rest is stable.

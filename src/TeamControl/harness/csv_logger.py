@@ -33,9 +33,6 @@ class CSVLogger:
         if self._file is None: 
             raise RuntimeError("CSVLogger.log() called before start")
         ROUND = {"t_ms": 3, "x_pos": 2, "y_pos": 2, "theta_pos": 4}
-<<<<<<< HEAD
-        row = [round(fields[col], ROUND[col]) if col in ROUND and isinstance(fields.get(col), (int, float)) else fields[col] if col in fields else "" for col in self.columns]
-=======
         row = []
         for col in self.columns:
             val = fields.get(col, "")
@@ -51,7 +48,9 @@ class CSVLogger:
                     row.append("")
             else:
                 row.append(val)
->>>>>>> 69e62d3a4dc5e1a22b5e13170a826b6b313eb90e
+=======
+        row = [round(fields[col], ROUND[col]) if col in fields and col in ROUND else fields[col] if col in fields else "" for col in self.columns]
+>>>>>>> 2026-TeamControl-main/main
         self._writer.writerow(row)
     
     def stop(self):
@@ -60,3 +59,5 @@ class CSVLogger:
         self._file.close()
         self._file = None
         self._writer = None
+
+

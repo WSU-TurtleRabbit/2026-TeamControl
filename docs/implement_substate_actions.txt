@@ -1,0 +1,63 @@
+### 1. New BT wired into grSim (`src/TeamControl/SSL/grSim/sandbox.py`)
+
+- Added `Dispatcher` process to actually send commands to grSim
+- Added `GCfsm` process to receive game controller state
+- Fixed vision port and grSim command port to match config
+
+### 2. Game State Pipeline
+
+**`common.py`** — Added `BALL_PLACEMENT_POS` packet type
+
+**`gcfsm_runner.py`** — Now forwards `designated_position` (ball placement target) from every GC message into `gc_q`
+
+**`model.py`** — Stores `ball_placement_pos` and exposes it via `get_ball_placement_pos()`
+
+**`snapshot.py`** — Expanded `GamePhase` from 3 states to 10:
+
+`HALTED, HALF_TIME, STOPPED,
+PREPARE_KICKOFF, KICKOFF, FREE_KICK,
+BALL_PLACEMENT, PENALTY_SHOOT, PENALTY_DEFEND,
+RUNNING`
+
+Added `ball_placement_pos` to `RefereeState`
+
+**`adapter.py`** — Maps all `GameState` → `GamePhase`, reads `ball_placement_pos` from WorldModel into Snapshot
+
+---
+
+### 3. Coordinator — Full Game State Handling (`coordinator.py`)
+
+| State | Robot Behaviour |
+| --- | --- |
+| HALTED / HALF_TIME | No intents → robots stop |
+| STOPPED | Hold pos, back away if <0.55m from ball, speed ≤1.4 m/s |
+| PREPARE_KICKOFF | Fixed positions, all in own half, attacker at centre (0,0) |
+| KICKOFF | Attacker → ball at centre, others hold kickoff spots |
+| FREE_KICK | Attacker → ball, others freeze |
+| BALL_PLACEMENT | Attacker → ball → dribbles to target → clears after placing. Others stay 0.55m from ball AND from ball→target line |
+| PENALTY_SHOOT | All behind ball (x≤2.0), attacker → penalty spot (3.5, 0) |
+| PENALTY_DEFEND | Goalie tracks ball on goal line, others hold defensive positions |
+| RUNNING | Normal role trees (attacker/defender/supporter/goalie BTs) |
+
+Coordinator also takes `us_positive` — all fixed position maps are automatically mirrored when attacking the negative-x goal
+
+---
+
+### 4. Speed Cap for STOPPED (`intent.py` + `move_to.py` + `adapter.py`)
+
+- Added `max_speed` field to `IntentMove`
+- Flows through skill layer into final robot command velocity
+- STOPPED and BALL_PLACEMENT non-placers are capped at 1.4 m/s (SSL rule: <1.5 m/s)
+
+---
+
+### Data Flow
+
+`grSim vision ──→ VisionProcess ──→ vision_q ──┐
+GC (port 10003) → GCfsm ──────→ gc_q ─────────┤→ WMWorker → WorldModel
+                                                │
+                              run_bt_v2_process → Coordinator
+                                                    ↓ checks GamePhase
+                                                    ↓ runs role trees or state handler
+                                                    ↓ writes Intents
+                              adapter → RobotCommands → dispatcher_q → Dispatcher → grS`

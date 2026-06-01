@@ -2,8 +2,14 @@
 *.png
 *_samples.png
 .vscode
+<<<<<<< HEAD
 .spacialdesk/
 
+=======
+.spacialdesk
+.out
+out/
+>>>>>>> 2026-TeamControl-main/main
 bin/
 lib/
 pyvenv.cfg
