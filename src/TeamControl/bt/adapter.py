@@ -103,11 +103,14 @@ def _team_to_states(team) -> tuple[RobotState, ...]:
     return tuple(out)
 
 
-def build_snapshot_from_world_model(wm) -> Snapshot | None:
+def build_snapshot_from_world_model(wm, is_yellow: bool | None = None) -> Snapshot | None:
     """Build a frozen ``Snapshot`` from the latest data in ``WorldModel``.
 
-    Returns ``None`` when no vision frame has been received yet — callers
-    should skip the tick in that case.
+    ``is_yellow`` selects whose perspective the snapshot is built from.
+    Pass explicitly for 6v6 where two BT processes share the same WorldModel.
+    Omit to fall back to ``wm.us_yellow()``.
+
+    Returns ``None`` when no vision frame has been received yet.
     """
     frame = wm.get_latest_frame()
     if frame is None:
@@ -115,9 +118,10 @@ def build_snapshot_from_world_model(wm) -> Snapshot | None:
 
     ball_pos, ball_vel = _ball_pos_vel(frame)
 
-    us_yellow = wm.us_yellow()
-    own_team = frame.robots_yellow if us_yellow else frame.robots_blue
-    opp_team = frame.robots_blue if us_yellow else frame.robots_yellow
+    if is_yellow is None:
+        is_yellow = bool(wm.us_yellow())
+    own_team = frame.robots_yellow if is_yellow else frame.robots_blue
+    opp_team = frame.robots_blue if is_yellow else frame.robots_yellow
 
     raw_placement = wm.get_ball_placement_pos()
     placement_pos = (float(raw_placement[0]), float(raw_placement[1])) if raw_placement else None

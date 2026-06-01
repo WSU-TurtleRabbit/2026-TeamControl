@@ -40,7 +40,8 @@ def _start_team(is_running: Event, vision_q: Queue, config_file: str):
 
     bt = Process(
         target=run_bt_v2_process,
-        args=(is_running, wm, dispatcher_q, None, config_file),
+        args=(is_running, wm, dispatcher_q),
+        kwargs={"config_file": config_file},
     )
 
     dispatcher = Process(
