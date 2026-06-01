@@ -113,7 +113,7 @@ def plot_ball_to_goal(ax,frame):
         dx = math.cos(robot_orientation) * arrow_len
         dy = math.sin(robot_orientation) * arrow_len
 
-        behind_pos = RobotMovement.behind_ball_point(ball_pos, goal_pos, buffer_radius)
+        behind_pos = RobotMovement.shooting_pos(ball_pos, goal_pos, buffer_radius)
     else:
         return
     

@@ -572,8 +572,8 @@ class TestPanel(QWidget):
         ip = self._grsim_ip.text().strip()
         port = self._grsim_port.value()
         if (self._grsim is None
-                or self._grsim._destination_ip != ip
-                or self._grsim.destination_port != port):
+                or self._grsim.ip != ip
+                or self._grsim.port != port):
             self._grsim = grSimSender(ip, port)
         return self._grsim
 

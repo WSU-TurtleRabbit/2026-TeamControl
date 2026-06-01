@@ -2,8 +2,9 @@
 *.png
 *_samples.png
 .vscode
-.spacialdesk
 .out
+.spacialdesk
+.spacialdesk/
 out/
 bin/
 lib/

@@ -69,6 +69,7 @@ class DispatcherPanel(QWidget):
 
         # ── Left: running commands ────────────────────────────────
         left = QWidget()
+        left.setStyleSheet(f"background: {BG_DARK};")
         ll = QVBoxLayout(left)
         ll.setContentsMargins(0, 0, 0, 0)
         ll.setSpacing(8)
@@ -82,9 +83,13 @@ class DispatcherPanel(QWidget):
         self._cmd_table.setAlternatingRowColors(True)
         self._cmd_table.verticalHeader().setVisible(False)
         self._cmd_table.setShowGrid(True)
+        self._cmd_table.setPlaceholderText("No active commands")
         hh = self._cmd_table.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.Stretch)
         hh.setMinimumSectionSize(45)
+        # Give IP column more room, keep small columns narrow
+        hh.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Target IP
+        hh.setSectionResizeMode(10, QHeaderView.ResizeToContents) # Port
         cmd_lay.addWidget(self._cmd_table)
         ll.addWidget(cmd_card)
 
@@ -101,6 +106,7 @@ class DispatcherPanel(QWidget):
 
         # ── Right: config & shell maps ────────────────────────────
         right = QWidget()
+        right.setStyleSheet(f"background: {BG_DARK};")
         rl = QVBoxLayout(right)
         rl.setContentsMargins(0, 0, 0, 0)
         rl.setSpacing(8)

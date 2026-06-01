@@ -94,7 +94,7 @@ def go_to_ball_and_shoot(
         #     shootingTarget=goal_pos,
         #     robot_offset=ROBOT_OFFSET,
         # )
-        shooting_pos = RobotMovement.behind_ball_point(
+        shooting_pos = RobotMovement.shooting_pos(
             ball_pos,
             goal_pos,
             ROBOT_OFFSET,
