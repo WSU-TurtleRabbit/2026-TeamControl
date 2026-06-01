@@ -84,8 +84,8 @@ gc:
 network:
   robot_ip: 0.0.0.0
   vision_ip: 0.0.0.0
-use_grSim_vision: false
+use_grSim_vision: true
 us_yellow: true
-us_positive: true
-send_to_grSim: false
+us_positive: false
+send_to_grSim: true
 team_name: TurtleRabbit
