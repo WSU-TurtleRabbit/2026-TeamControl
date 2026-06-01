@@ -83,7 +83,6 @@ class DispatcherPanel(QWidget):
         self._cmd_table.setAlternatingRowColors(True)
         self._cmd_table.verticalHeader().setVisible(False)
         self._cmd_table.setShowGrid(True)
-        self._cmd_table.setPlaceholderText("No active commands")
         hh = self._cmd_table.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.Stretch)
         hh.setMinimumSectionSize(45)
