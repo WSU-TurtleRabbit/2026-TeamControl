@@ -51,7 +51,7 @@ GOAL_POSITION: tuple[float, float] = (4.5, 0.0)   # opponent goal centre
 # Distance at which we consider the ball to be in the dribbler (we "have" it).
 # SSL robot diameter ~0.18 m, ball ~0.043 m → centre-to-centre ~0.11 m when
 # touching. 0.15 m gives a small margin so the predicate doesn't flicker.
-POSSESSION_DIST: float = 0.15
+POSSESSION_DIST: float = 0.14
 
 # Maximum angular error between the robot's heading and the direction to the
 # ball before we say we "have" the ball. The kicker plate is on the front of
