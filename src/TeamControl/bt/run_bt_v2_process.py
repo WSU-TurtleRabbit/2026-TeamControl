@@ -46,6 +46,11 @@ def _send_stop_commands(
 # Robot ids 0..5 — matches Coordinator.ROLE_ASSIGNMENT.
 DEFAULT_ROBOT_IDS: list[int] = [0, 1, 2, 3, 4, 5]
 
+# Robots routed through the new Skill Intent Executor pipeline.
+# Empty set = everyone uses the legacy path (safe default).
+# Add robot IDs here to test the new pipeline e.g. {0} or {0, 1}.
+NEW_PIPELINE_ROBOTS: set[int] = set()
+
 # Target tick period in seconds (100 Hz).
 TICK_PERIOD: float = 0.01
 
@@ -95,14 +100,14 @@ def run_bt_v2_process(
     _cfg = _YamlConfig(config_file)
     if is_yellow is None:
         is_yellow = bool(_cfg.us_yellow)
-    # Blue team is always on the opposite side from yellow.
-    _us_positive = not is_yellow if is_yellow is not None else bool(_cfg.us_positive)
+    _us_positive = bool(_cfg.us_positive)
     coordinator = _build_coordinator(us_positive=_us_positive)
     print(f"[BT] started — yellow={is_yellow}, us_positive={_us_positive}, robot_ids={robot_ids}")
 
     tag = "[BT-YELLOW]" if is_yellow else "[BT-BLUE]"
     last_phase = None
     tick_count = 0
+    _executor_states: dict = {}
 
     try:
         while is_running.is_set():
@@ -143,6 +148,8 @@ def run_bt_v2_process(
                     snapshot,
                     is_yellow,
                     dispatcher_q,
+                    new_pipeline_robots=NEW_PIPELINE_ROBOTS,
+                    executor_states=_executor_states,
                 )
             time.sleep(tick_period)
     except KeyboardInterrupt:

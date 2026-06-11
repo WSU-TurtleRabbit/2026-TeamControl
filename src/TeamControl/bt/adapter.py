@@ -243,24 +243,99 @@ def dispatch_coordinator_output(
     is_yellow: bool,
     dispatcher_q,
     run_time: float = 1.0,
+    new_pipeline_robots: set[int] | None = None,
+    executor_states: dict | None = None,
 ) -> int:
     """Walk each robot's blackboard after a ``Coordinator.tick`` and emit a
     ``RobotCommand`` per non-empty intent.
 
-    Reading the intent off the per-robot blackboard is more robust than
-    aligning the ``Coordinator.tick`` list with ``robot_ids``: skipped robots
-    (absent from snapshot, or which produced no intent) leave gaps in the
-    returned list that are easy to misalign.
+    Robots in ``new_pipeline_robots`` are dispatched through the new
+    Skill Intent Executor pipeline. All others use the legacy path.
+    ``executor_states`` is a dict[robot_id, SkillExecutionState] owned by the
+    caller so state persists across ticks.
     """
+    from TeamControl.bt.contracts.geometry import Point2D, Pose2D
+    from TeamControl.bt.contracts.skill_intent import SkillIntent
+    from TeamControl.bt.skill_intent_executor import execute as _sie_execute
+
+    if new_pipeline_robots is None:
+        new_pipeline_robots = set()
+    if executor_states is None:
+        executor_states = {}
+
     sent = 0
     for rid in robot_ids:
         bb = coordinator.blackboards.get(rid)
         if bb is None or bb.current_intent is None:
             continue
-        cmd = intent_to_robot_command(bb.current_intent, rid, snapshot, is_yellow)
+
+        if rid in new_pipeline_robots:
+            # --- New pipeline ---
+            cmd = _dispatch_new_pipeline(
+                rid, is_yellow, bb.current_intent, snapshot,
+                executor_states, _sie_execute, Pose2D, Point2D, SkillIntent,
+            )
+        else:
+            # --- Legacy pipeline ---
+            cmd = intent_to_robot_command(bb.current_intent, rid, snapshot, is_yellow)
+
         if cmd is None:
             continue
         if not dispatcher_q.full():
             dispatcher_q.put([cmd, run_time])
             sent += 1
     return sent
+
+
+def _dispatch_new_pipeline(rid, is_yellow, intent, snapshot, executor_states,
+                            sie_execute, Pose2D, Point2D, SkillIntent):
+    """Bridge old Intent → SkillIntent and call the Skill Intent Executor."""
+    # Get current robot pose from snapshot
+    robot = next((r for r in snapshot.own_robots if r.robot_id == rid), None)
+    if robot is None:
+        return None
+    current_pose = Pose2D(robot.position[0], robot.position[1], robot.orientation)
+
+    # Ball position
+    bx, by = snapshot.ball_position
+    ball_pos = Point2D(bx, by)
+
+    # Ball velocity
+    from TeamControl.bt.contracts.geometry import Velocity2D
+    bvx, bvy = snapshot.ball_velocity
+    ball_vel = Velocity2D(bvx, bvy)
+
+    # Map old Intent → SkillIntent + target_pose
+    skill_intent, target_pose = _intent_to_skill_intent(intent, current_pose, Pose2D, SkillIntent)
+
+    prev_state = executor_states.get(rid)
+    cmd, new_state = sie_execute(
+        skill_intent=skill_intent,
+        robot_id=rid,
+        is_yellow=is_yellow,
+        current_pose=current_pose,
+        target_pose=target_pose,
+        ball_pos=ball_pos,
+        ball_vel=ball_vel,
+        state=prev_state,
+    )
+    executor_states[rid] = new_state
+    return cmd
+
+
+def _intent_to_skill_intent(intent, current_pose, Pose2D, SkillIntent):
+    """Map a legacy Intent to the nearest SkillIntent + target Pose2D."""
+    if isinstance(intent, IntentMove):
+        tx, ty = intent.target_pos
+        theta = intent.target_orientation if intent.target_orientation is not None else current_pose.theta
+        return SkillIntent.MOVE_TO_POINT, Pose2D(tx, ty, theta)
+    if isinstance(intent, IntentKick):
+        tx, ty = intent.target_pos
+        return SkillIntent.GO_TO_BALL_AND_KICK, Pose2D(tx, ty, current_pose.theta)
+    if isinstance(intent, IntentDribble):
+        tx, ty = intent.target_pos
+        return SkillIntent.DRIBBLE_TO_POINT, Pose2D(tx, ty, current_pose.theta)
+    if isinstance(intent, IntentOrient):
+        return SkillIntent.FACE_TARGET, Pose2D(current_pose.x, current_pose.y, intent.target_orientation)
+    # IntentReceive / IntentPass / fallback
+    return SkillIntent.STOP, current_pose
