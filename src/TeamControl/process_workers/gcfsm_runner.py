@@ -236,12 +236,13 @@ class GCfsm (BaseWorker):
         if len(game_events) == 0:
             return
 
-        for e in game_events:
-            if e.type == GameEventType.BALL_LEFT_FIELD_TOUCH_LINE or e.type == GameEventType.BALL_LEFT_FIELD_GOAL_LINE:
-                print("ball_left_field")
-            if e.type == GameEventType.BOT_SUBSTITUTION :
-                if e.by_team == Team.YELLOW if self.us_yellow == True else Team.BLUE:
-                    print("we sub robot")
+        # for e in game_events:
+        #     if e.type == GameEventType.BALL_LEFT_FIELD_TOUCH_LINE or e.type == GameEventType.BALL_LEFT_FIELD_GOAL_LINE:
+        #         # print("ball_left_field")
+        #         # print("test")
+        #     if e.type == GameEventType.BOT_SUBSTITUTION :
+        #         if e.by_team == Team.YELLOW if self.us_yellow == True else Team.BLUE:
+        #             print("we sub robot")
 
     def forward_ball_location(self,event_data):
         location = event_data.location.vector

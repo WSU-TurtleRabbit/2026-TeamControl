@@ -126,17 +126,20 @@ class SSL_Multicast(Receiver):
             return "0.0.0.0"
 
     def _add_group(self):
-        """Joins multicast group on the vision network interface."""
+        """Joins multicast group, trying the configured interface then falling back to INADDR_ANY."""
         self.is_ready = False
         ip = self._get_vision_ip()
         print(f"[Multicast] joining {self.group} on {ip}")
-        try:
-            mreq = struct.pack("=4s4s", socket.inet_aton(self.group), socket.inet_aton(ip))
-            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-        except OSError as e:
-            print(f"[Multicast] failed to join {self.group} on {ip}: {e}")
-            raise
-        self.is_ready = True
+        for iface in ([ip, "0.0.0.0"] if ip != "0.0.0.0" else ["0.0.0.0"]):
+            try:
+                mreq = struct.pack("=4s4s", socket.inet_aton(self.group), socket.inet_aton(iface))
+                self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+                print(f"[Multicast] joined {self.group} on {iface}")
+                self.is_ready = True
+                return
+            except OSError as e:
+                print(f"[Multicast] failed to join {self.group} on {iface}: {e}")
+        raise OSError(f"[Multicast] could not join {self.group} on any interface")
         
     def listen(self) -> object | bytearray:
         # set to only return the decoded data

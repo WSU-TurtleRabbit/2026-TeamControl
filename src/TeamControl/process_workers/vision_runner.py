@@ -93,7 +93,8 @@ class VisionProcess(BaseWorker):
         if not self.output_q.full():
             self.output_q.put(data)
         else:
-            self.logger.warning("[VP] : VISION QUEUE IS FULL")
+            self.logger.warning("[VP] : VISION QUEUE IS FULL — frame dropped")
+            print("[VP] WARNING: vision queue full, frame dropped (WMWorker may be lagging)", flush=True)
 
 
 if __name__ == "__main__" :

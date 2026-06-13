@@ -25,7 +25,7 @@ from TeamControl.robot.constants import (
     CRUISE_SPEED, CHARGE_SPEED, DRIBBLE_SPEED,
     MAX_W, TURN_GAIN,
     KICK_COOLDOWN, LOOP_RATE, FRAME_INTERVAL,
-    DEFENSE_DEPTH,
+    DEFENSE_DEPTH, POSSESS_DIST
 )
 
 # -- Tuning ---------------------------------------------------------------
